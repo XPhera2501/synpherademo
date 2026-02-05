@@ -148,12 +148,12 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
             
             <div className="space-y-2">
               <Label>Assign to Reviewer (Optional)</Label>
-              <Select value={assignedTo} onValueChange={setAssignedTo}>
+              <Select value={assignedTo || '__none__'} onValueChange={(v) => setAssignedTo(v === '__none__' ? '' : v)}>
                 <SelectTrigger className="bg-card">
                   <SelectValue placeholder="Select reviewer..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No reviewer</SelectItem>
+                  <SelectItem value="__none__">No reviewer</SelectItem>
                   {REVIEWERS.map((reviewer) => (
                     <SelectItem key={reviewer.id} value={reviewer.id}>
                       {reviewer.avatar} {reviewer.name} / {reviewer.department}
