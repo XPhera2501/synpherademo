@@ -2,9 +2,13 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DEPARTMENTS, Department, ROICategory, ScanResult, PromptTemplate } from '@/lib/synphera-types';
 import { runSecurityScan } from '@/lib/security-scanner';
+import { validatePromptBestPractices, type ValidationResult } from '@/lib/prompt-validator';
 import { createAsset, saveROIFact } from '@/lib/supabase-store';
 import type { DepartmentEnum, AssetStatusEnum } from '@/lib/supabase-store';
 import { ScanResultPanel } from './ScanResultPanel';
@@ -12,7 +16,7 @@ import { ROIBuilder } from './ROIBuilder';
 import { PromptEditor } from './PromptEditor';
 import { TemplateLibrary } from './TemplateLibrary';
 import { useAuth } from '@/hooks/useAuth';
-import { Shield, Save, AlertTriangle, MessageSquare, Lock } from 'lucide-react';
+import { Shield, Save, AlertTriangle, MessageSquare, Lock, Tag, X, Info, CheckCircle, XCircle, Lightbulb, FolderOpen } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ROIEntry {
@@ -24,11 +28,16 @@ interface CreationTabProps {
   onAssetCreated: () => void;
 }
 
+const CATEGORIES = ['Analysis', 'Generation', 'Classification', 'Extraction', 'Summarization', 'Translation', 'Code', 'Creative', 'Compliance', 'Other'];
+
 export function CreationTab({ onAssetCreated }: CreationTabProps) {
   const { user, canEdit, role } = useAuth();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [department, setDepartment] = useState<DepartmentEnum>('Operations');
+  const [category, setCategory] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
   const [roiEntries, setRoiEntries] = useState<ROIEntry[]>([]);
   const [justification, setJustification] = useState('');
   const [commitMessage, setCommitMessage] = useState('');
@@ -36,6 +45,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
   
   const canSave = scanResult && (scanResult.status === 'GREEN' || (scanResult.status === 'AMBER' && justification.trim().length > 10));
   const isBlocked = scanResult?.status === 'RED';
@@ -43,7 +53,36 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   const handleTemplateSelect = (template: PromptTemplate) => {
     setTitle(template.name);
     setContent(template.content);
+    if (template.department) setDepartment(template.department as DepartmentEnum);
     toast.success(`Template "${template.name}" loaded`);
+  };
+
+  const handleAddTag = () => {
+    const tag = tagInput.trim().toLowerCase();
+    if (tag && !tags.includes(tag) && tags.length < 10) {
+      setTags([...tags, tag]);
+      setTagInput('');
+    }
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    setTags(tags.filter(t => t !== tag));
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      handleAddTag();
+    }
+  };
+
+  const handleContentChange = (val: string) => {
+    setContent(val);
+    if (val.length > 20) {
+      setValidation(validatePromptBestPractices(val, title));
+    } else {
+      setValidation(null);
+    }
   };
   
   const handleScan = async () => {
@@ -79,11 +118,12 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       assigned_to: null,
       created_by: user.id,
       department,
+      category: category || null,
       security_status: scanResult!.status,
       justification: justification || null,
       commit_message: commitMessage.trim(),
       is_locked: false,
-      tags: [],
+      tags,
     });
     
     if (asset) {
@@ -96,6 +136,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       toast.success(`Asset "${title}" saved successfully!`);
       setTitle(''); setContent(''); setRoiEntries([]);
       setJustification(''); setCommitMessage(''); setScanResult(null);
+      setTags([]); setCategory(''); setValidation(null);
       onAssetCreated();
     } else {
       toast.error('Failed to save asset. Check your permissions.');
@@ -134,7 +175,61 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
             <TemplateLibrary onSelect={handleTemplateSelect} />
           </div>
           
-          <PromptEditor value={content} onChange={setContent} />
+          <PromptEditor value={content} onChange={handleContentChange} />
+
+          {/* CLEAR Framework Guidance */}
+          <Card className="border-dashed border-primary/20 bg-primary/5">
+            <CardContent className="py-3 px-4">
+              <div className="flex items-start gap-2">
+                <Lightbulb className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p className="font-medium text-foreground">CLEAR Framework</p>
+                  <div className="grid grid-cols-5 gap-1">
+                    {[
+                      { letter: 'C', word: 'Concise', tip: 'Remove filler words' },
+                      { letter: 'L', word: 'Logical', tip: 'Structured flow' },
+                      { letter: 'E', word: 'Explicit', tip: 'No ambiguity' },
+                      { letter: 'A', word: 'Adaptive', tip: 'Handles edge cases' },
+                      { letter: 'R', word: 'Reflective', tip: 'Self-checks output' },
+                    ].map(({ letter, word, tip }) => (
+                      <Tooltip key={letter}>
+                        <TooltipTrigger asChild>
+                          <div className="text-center cursor-help">
+                            <span className="font-bold text-primary">{letter}</span>
+                            <p className="text-[10px]">{word}</p>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent><p className="text-xs">{tip}</p></TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Prompt Validation */}
+          {validation && (
+            <Card className={`border ${validation.score >= 70 ? 'border-status-green/30 bg-status-green/5' : validation.score >= 40 ? 'border-status-amber/30 bg-status-amber/5' : 'border-status-red/30 bg-status-red/5'}`}>
+              <CardContent className="py-3 px-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium flex items-center gap-1.5">
+                    {validation.score >= 70 ? <CheckCircle className="h-3.5 w-3.5 text-status-green" /> : <Info className="h-3.5 w-3.5 text-status-amber" />}
+                    Quality Score: {validation.score}/100
+                  </span>
+                  <Badge variant="outline" className="text-[10px]">{validation.checks.filter(c => c.passed).length}/{validation.checks.length} passed</Badge>
+                </div>
+                <div className="space-y-1">
+                  {validation.checks.filter(c => !c.passed).map((check, i) => (
+                    <p key={i} className="text-[11px] text-muted-foreground flex items-center gap-1">
+                      <XCircle className="h-3 w-3 text-status-amber flex-shrink-0" />
+                      {check.message}
+                    </p>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
           <div className="space-y-2">
             <Label htmlFor="commit" className="flex items-center gap-2">
@@ -149,17 +244,60 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
               className="bg-card text-sm"
             />
           </div>
-          
+
+          {/* Department + Category row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Department</Label>
+              <Select value={department} onValueChange={(v) => setDepartment(v as DepartmentEnum)}>
+                <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {DEPARTMENTS.map((dept) => (
+                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                Category
+              </Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="bg-card"><SelectValue placeholder="Select category" /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Tags */}
           <div className="space-y-2">
-            <Label>Department</Label>
-            <Select value={department} onValueChange={(v) => setDepartment(v as DepartmentEnum)}>
-              <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {DEPARTMENTS.map((dept) => (
-                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label className="flex items-center gap-1.5">
+              <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+              Tags
+            </Label>
+            <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 rounded-lg border border-border bg-card">
+              {tags.map(tag => (
+                <Badge key={tag} variant="secondary" className="gap-1 text-xs h-6">
+                  {tag}
+                  <button onClick={() => handleRemoveTag(tag)} className="hover:text-destructive">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+              <Input
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                onBlur={handleAddTag}
+                placeholder={tags.length === 0 ? "Add tags (press Enter)" : ""}
+                className="border-0 bg-transparent shadow-none h-6 min-w-[100px] flex-1 p-0 text-sm focus-visible:ring-0"
+              />
+            </div>
           </div>
         </div>
         
