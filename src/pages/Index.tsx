@@ -14,59 +14,55 @@ export default function Index() {
   const [currentUser, setCurrentUser] = useState('');
   
   useEffect(() => {
-    // Seed database on first load
     seedDatabase();
   }, []);
   
-  const handleRefresh = () => {
-    setRefreshKey(prev => prev + 1);
-  };
+  const handleRefresh = () => setRefreshKey(prev => prev + 1);
   
   return (
     <div className="min-h-screen bg-background">
       <Header />
       
-      <div className="mx-auto max-w-7xl px-6 py-6">
-        <div className="mb-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-6">
+        <div className="mb-4 sm:mb-6">
           <UserSelector onUserChange={(userId) => {
             setCurrentUser(userId);
             handleRefresh();
           }} />
         </div>
         
-        <Tabs defaultValue="creation" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-card border border-border h-14">
+        <Tabs defaultValue="creation" className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full grid-cols-4 bg-card border border-border h-12 sm:h-14">
             <TabsTrigger 
               value="creation" 
-              className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
-              <FileText className="h-4 w-4" />
+              <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Creation / Ingestion</span>
               <span className="sm:hidden">Create</span>
             </TabsTrigger>
             <TabsTrigger 
               value="collaboration"
-              className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
-              <Users className="h-4 w-4" />
+              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Collaboration & Review</span>
               <span className="sm:hidden">Review</span>
             </TabsTrigger>
             <TabsTrigger 
               value="analytics"
-              className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
-              <BarChart3 className="h-4 w-4" />
+              <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Analytics</span>
               <span className="sm:hidden">Stats</span>
             </TabsTrigger>
             <TabsTrigger 
               value="help"
-              className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
-              <HelpCircle className="h-4 w-4" />
-              <span className="hidden sm:inline">Help</span>
-              <span className="sm:hidden">Help</span>
+              <HelpCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>Help</span>
             </TabsTrigger>
           </TabsList>
           
