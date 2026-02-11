@@ -14,16 +14,331 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          target_id: string | null
+          target_type: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      lineage_entries: {
+        Row: {
+          action: string
+          asset_id: string
+          created_at: string
+          id: string
+          parent_id: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          asset_id: string
+          created_at?: string
+          id?: string
+          parent_id?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          asset_id?: string
+          created_at?: string
+          id?: string
+          parent_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lineage_entries_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lineage_entries_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          department: Database["public"]["Enums"]["department"] | null
+          display_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          department?: Database["public"]["Enums"]["department"] | null
+          display_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          department?: Database["public"]["Enums"]["department"] | null
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      prompt_assets: {
+        Row: {
+          assigned_to: string | null
+          category: string | null
+          commit_message: string | null
+          content: string
+          created_at: string
+          created_by: string
+          department: Database["public"]["Enums"]["department"]
+          id: string
+          is_locked: boolean
+          justification: string | null
+          parent_id: string | null
+          security_status: string
+          status: Database["public"]["Enums"]["asset_status"]
+          tags: string[] | null
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string | null
+          commit_message?: string | null
+          content?: string
+          created_at?: string
+          created_by: string
+          department?: Database["public"]["Enums"]["department"]
+          id?: string
+          is_locked?: boolean
+          justification?: string | null
+          parent_id?: string | null
+          security_status?: string
+          status?: Database["public"]["Enums"]["asset_status"]
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string | null
+          commit_message?: string | null
+          content?: string
+          created_at?: string
+          created_by?: string
+          department?: Database["public"]["Enums"]["department"]
+          id?: string
+          is_locked?: boolean
+          justification?: string | null
+          parent_id?: string | null
+          security_status?: string
+          status?: Database["public"]["Enums"]["asset_status"]
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_assets_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prompt_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          prompt_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          prompt_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          prompt_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_comments_prompt_id_fkey"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roi_facts: {
+        Row: {
+          asset_id: string
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          value: number
+        }
+        Insert: {
+          asset_id: string
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          value?: number
+        }
+        Update: {
+          asset_id?: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roi_facts_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      version_snapshots: {
+        Row: {
+          asset_id: string
+          commit_message: string
+          content: string
+          created_at: string
+          id: string
+          title: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          asset_id: string
+          commit_message?: string
+          content: string
+          created_at?: string
+          id?: string
+          title: string
+          user_id: string
+          version: number
+        }
+        Update: {
+          asset_id?: string
+          commit_message?: string
+          content?: string
+          created_at?: string
+          id?: string
+          title?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "version_snapshots_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "creator" | "reviewer" | "viewer"
+      asset_status: "draft" | "in_review" | "approved" | "released"
+      department:
+        | "Operations"
+        | "Legal"
+        | "R&D"
+        | "Marketing"
+        | "Finance"
+        | "HR"
+        | "IT"
+        | "Executive"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +465,19 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "creator", "reviewer", "viewer"],
+      asset_status: ["draft", "in_review", "approved", "released"],
+      department: [
+        "Operations",
+        "Legal",
+        "R&D",
+        "Marketing",
+        "Finance",
+        "HR",
+        "IT",
+        "Executive",
+      ],
+    },
   },
 } as const
