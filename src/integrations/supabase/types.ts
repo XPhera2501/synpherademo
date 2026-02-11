@@ -93,6 +93,7 @@ export type Database = {
           department: Database["public"]["Enums"]["department"] | null
           display_name: string | null
           id: string
+          suspended: boolean
           updated_at: string
         }
         Insert: {
@@ -101,6 +102,7 @@ export type Database = {
           department?: Database["public"]["Enums"]["department"] | null
           display_name?: string | null
           id: string
+          suspended?: boolean
           updated_at?: string
         }
         Update: {
@@ -109,6 +111,7 @@ export type Database = {
           department?: Database["public"]["Enums"]["department"] | null
           display_name?: string | null
           id?: string
+          suspended?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -122,6 +125,7 @@ export type Database = {
           created_at: string
           created_by: string
           department: Database["public"]["Enums"]["department"]
+          fts: unknown
           id: string
           is_locked: boolean
           justification: string | null
@@ -141,6 +145,7 @@ export type Database = {
           created_at?: string
           created_by: string
           department?: Database["public"]["Enums"]["department"]
+          fts?: unknown
           id?: string
           is_locked?: boolean
           justification?: string | null
@@ -160,6 +165,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           department?: Database["public"]["Enums"]["department"]
+          fts?: unknown
           id?: string
           is_locked?: boolean
           justification?: string | null

@@ -24,6 +24,34 @@ export async function getAssets(): Promise<DbPromptAsset[]> {
   return data || [];
 }
 
+export interface AssetFilters {
+  search?: string;
+  department?: DepartmentEnum;
+  status?: AssetStatusEnum;
+  category?: string;
+  tags?: string[];
+  createdBy?: string;
+}
+
+export async function getAssetsFiltered(filters: AssetFilters): Promise<DbPromptAsset[]> {
+  let query = supabase.from('prompt_assets').select('*').order('created_at', { ascending: false });
+
+  if (filters.department) query = query.eq('department', filters.department);
+  if (filters.status) query = query.eq('status', filters.status);
+  if (filters.category) query = query.eq('category', filters.category);
+  if (filters.createdBy) query = query.eq('created_by', filters.createdBy);
+  if (filters.tags && filters.tags.length > 0) {
+    query = query.overlaps('tags', filters.tags);
+  }
+  if (filters.search) {
+    query = query.textSearch('fts', filters.search, { type: 'websearch' });
+  }
+
+  const { data, error } = await query;
+  if (error) { console.error('getAssetsFiltered error:', error); return []; }
+  return data || [];
+}
+
 export async function getAssetById(id: string): Promise<DbPromptAsset | null> {
   const { data } = await supabase.from('prompt_assets').select('*').eq('id', id).single();
   return data;
@@ -56,6 +84,11 @@ export async function updateAsset(id: string, updates: TablesUpdate<'prompt_asse
   const { data, error } = await supabase.from('prompt_assets').update(updates).eq('id', id).select().single();
   if (error) { console.error('updateAsset error:', error); return null; }
   return data;
+}
+
+export async function deleteAsset(id: string): Promise<boolean> {
+  const { error } = await supabase.from('prompt_assets').delete().eq('id', id);
+  return !error;
 }
 
 // ==================== Version Snapshots ====================
@@ -115,8 +148,8 @@ export async function addAuditLog(log: TablesInsert<'audit_logs'>): Promise<void
   await supabase.from('audit_logs').insert(log);
 }
 
-export async function getAuditLogs(): Promise<Tables<'audit_logs'>[]> {
-  const { data } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100);
+export async function getAuditLogs(limit = 100): Promise<Tables<'audit_logs'>[]> {
+  const { data } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(limit);
   return data || [];
 }
 
@@ -129,6 +162,11 @@ export async function getProfiles(): Promise<DbProfile[]> {
 
 export async function updateProfile(userId: string, updates: TablesUpdate<'profiles'>): Promise<void> {
   await supabase.from('profiles').update(updates).eq('id', userId);
+}
+
+export async function suspendUser(userId: string, suspended: boolean): Promise<boolean> {
+  const { error } = await supabase.from('profiles').update({ suspended } as any).eq('id', userId);
+  return !error;
 }
 
 // ==================== Rollback ====================
@@ -198,4 +236,20 @@ export async function getDepartmentROIMatrix() {
 export async function getTotalEnterpriseValue(): Promise<number> {
   const facts = await getROIFacts();
   return facts.reduce((sum, f) => sum + Number(f.value), 0);
+}
+
+export async function getSecurityStats(assets: DbPromptAsset[]) {
+  return {
+    green: assets.filter(a => a.security_status === 'GREEN').length,
+    amber: assets.filter(a => a.security_status === 'AMBER').length,
+    red: assets.filter(a => a.security_status === 'RED').length,
+    pending: assets.filter(a => a.security_status === 'PENDING').length,
+  };
+}
+
+export async function getAssetCountByDepartment(assets: DbPromptAsset[]) {
+  const counts: Record<string, number> = {};
+  DEPARTMENTS.forEach(d => counts[d] = 0);
+  assets.forEach(a => { if (counts[a.department] !== undefined) counts[a.department]++; });
+  return counts;
 }
