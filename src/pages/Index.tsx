@@ -1,21 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Header } from '@/components/synphera/Header';
-import { UserSelector } from '@/components/synphera/UserSelector';
 import { CreationTab } from '@/components/synphera/CreationTab';
 import { CollaborationTab } from '@/components/synphera/CollaborationTab';
 import { AnalyticsTab } from '@/components/synphera/AnalyticsTab';
 import { HelpTab } from '@/components/synphera/HelpTab';
-import { seedDatabase } from '@/lib/synphera-store';
-import { FileText, Users, BarChart3, HelpCircle } from 'lucide-react';
+import { AdminTab } from '@/components/synphera/AdminTab';
+import { useAuth } from '@/hooks/useAuth';
+import { FileText, Users, BarChart3, HelpCircle, Settings } from 'lucide-react';
 
 export default function Index() {
   const [refreshKey, setRefreshKey] = useState(0);
-  const [currentUser, setCurrentUser] = useState('');
-  
-  useEffect(() => {
-    seedDatabase();
-  }, []);
+  const { isAdmin, canEdit } = useAuth();
   
   const handleRefresh = () => setRefreshKey(prev => prev + 1);
   
@@ -24,15 +20,8 @@ export default function Index() {
       <Header />
       
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-6">
-        <div className="mb-4 sm:mb-6">
-          <UserSelector onUserChange={(userId) => {
-            setCurrentUser(userId);
-            handleRefresh();
-          }} />
-        </div>
-        
         <Tabs defaultValue="creation" className="space-y-4 sm:space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-card border border-border h-12 sm:h-14">
+          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'} bg-card border border-border h-12 sm:h-14`}>
             <TabsTrigger 
               value="creation" 
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
@@ -64,6 +53,16 @@ export default function Index() {
               <HelpCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>Help</span>
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger 
+                value="admin"
+                className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Admin</span>
+                <span className="sm:hidden">⚙</span>
+              </TabsTrigger>
+            )}
           </TabsList>
           
           <TabsContent value="creation" className="animate-fade-in-up">
@@ -81,6 +80,12 @@ export default function Index() {
           <TabsContent value="help" className="animate-fade-in-up">
             <HelpTab />
           </TabsContent>
+          
+          {isAdmin && (
+            <TabsContent value="admin" className="animate-fade-in-up">
+              <AdminTab />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>

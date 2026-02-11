@@ -3,14 +3,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { REVIEWERS, DEPARTMENTS, Department, ROICategory, ScanResult, PromptTemplate } from '@/lib/synphera-types';
+import { DEPARTMENTS, Department, ROICategory, ScanResult, PromptTemplate } from '@/lib/synphera-types';
 import { runSecurityScan } from '@/lib/security-scanner';
-import { createAsset, saveROIFact, getCurrentUser } from '@/lib/synphera-store';
+import { createAsset, saveROIFact } from '@/lib/supabase-store';
+import type { DepartmentEnum, AssetStatusEnum } from '@/lib/supabase-store';
 import { ScanResultPanel } from './ScanResultPanel';
 import { ROIBuilder } from './ROIBuilder';
 import { PromptEditor } from './PromptEditor';
 import { TemplateLibrary } from './TemplateLibrary';
-import { Shield, Save, AlertTriangle, MessageSquare } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Shield, Save, AlertTriangle, MessageSquare, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ROIEntry {
@@ -23,16 +25,17 @@ interface CreationTabProps {
 }
 
 export function CreationTab({ onAssetCreated }: CreationTabProps) {
+  const { user, canEdit, role } = useAuth();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [department, setDepartment] = useState<Department>('Operations');
-  const [assignedTo, setAssignedTo] = useState<string>('');
+  const [department, setDepartment] = useState<DepartmentEnum>('Operations');
   const [roiEntries, setRoiEntries] = useState<ROIEntry[]>([]);
   const [justification, setJustification] = useState('');
   const [commitMessage, setCommitMessage] = useState('');
   
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   const canSave = scanResult && (scanResult.status === 'GREEN' || (scanResult.status === 'AMBER' && justification.trim().length > 10));
   const isBlocked = scanResult?.status === 'RED';
@@ -54,53 +57,69 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     setScanResult(result);
     setIsScanning(false);
     
-    if (result.status === 'GREEN') toast.success('Security scan passed! Asset is cleared for library.');
-    else if (result.status === 'AMBER') toast.warning('Potential issues detected. Review and provide justification.');
-    else toast.error('Critical issues found. Remediate content before saving.');
+    if (result.status === 'GREEN') toast.success('Security scan passed!');
+    else if (result.status === 'AMBER') toast.warning('Potential issues detected. Provide justification.');
+    else toast.error('Critical issues found. Remediate content.');
   };
   
-  const handleSave = () => {
-    if (!canSave || isBlocked) return;
+  const handleSave = async () => {
+    if (!canSave || isBlocked || !user) return;
     if (!commitMessage.trim()) {
       toast.error('Commit message is required');
       return;
     }
     
-    const currentUser = getCurrentUser();
-    const asset = createAsset({
+    setIsSaving(true);
+    const asset = await createAsset({
       title: title.trim(),
       content: content.trim(),
       version: 1.0,
-      status: assignedTo ? 'pending_review' : 'draft',
-      parentId: null,
-      assignedTo: assignedTo || null,
-      createdBy: currentUser,
+      status: 'draft' as AssetStatusEnum,
+      parent_id: null,
+      assigned_to: null,
+      created_by: user.id,
       department,
-      securityStatus: scanResult!.status,
-      lastScanResult: scanResult!,
-      justification: justification || undefined,
-      commitMessage: commitMessage.trim(),
-      isLocked: false,
+      security_status: scanResult!.status,
+      justification: justification || null,
+      commit_message: commitMessage.trim(),
+      is_locked: false,
+      tags: [],
     });
     
-    roiEntries.forEach(entry => {
-      if (entry.value > 0) {
-        saveROIFact({ assetId: asset.id, category: entry.category, value: entry.value });
+    if (asset) {
+      for (const entry of roiEntries) {
+        if (entry.value > 0) {
+          await saveROIFact({ asset_id: asset.id, category: entry.category, value: entry.value });
+        }
       }
-    });
-    
-    toast.success(`Asset "${title}" saved successfully!`);
-    setTitle(''); setContent(''); setAssignedTo(''); setRoiEntries([]);
-    setJustification(''); setCommitMessage(''); setScanResult(null);
-    onAssetCreated();
+      
+      toast.success(`Asset "${title}" saved successfully!`);
+      setTitle(''); setContent(''); setRoiEntries([]);
+      setJustification(''); setCommitMessage(''); setScanResult(null);
+      onAssetCreated();
+    } else {
+      toast.error('Failed to save asset. Check your permissions.');
+    }
+    setIsSaving(false);
   };
+
+  if (!canEdit) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 space-y-4">
+        <Lock className="h-12 w-12 text-muted-foreground" />
+        <h2 className="text-lg font-semibold">Viewer Access Only</h2>
+        <p className="text-sm text-muted-foreground text-center max-w-md">
+          Your role ({role}) doesn't have permission to create or edit assets. 
+          Contact an admin to upgrade your access.
+        </p>
+      </div>
+    );
+  }
   
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      {/* Left Column - Form */}
       <div className="space-y-6">
         <div className="space-y-4">
-          {/* Template & Title Row */}
           <div className="flex items-end gap-3">
             <div className="flex-1 space-y-2">
               <Label htmlFor="title">Asset Title</Label>
@@ -115,10 +134,8 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
             <TemplateLibrary onSelect={handleTemplateSelect} />
           </div>
           
-          {/* Enhanced Prompt Editor */}
           <PromptEditor value={content} onChange={setContent} />
           
-          {/* Commit Message */}
           <div className="space-y-2">
             <Label htmlFor="commit" className="flex items-center gap-2">
               <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
@@ -133,32 +150,16 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
             />
           </div>
           
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Department</Label>
-              <Select value={department} onValueChange={(v) => setDepartment(v as Department)}>
-                <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {DEPARTMENTS.map((dept) => (
-                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Assign to Reviewer (Optional)</Label>
-              <Select value={assignedTo || '__none__'} onValueChange={(v) => setAssignedTo(v === '__none__' ? '' : v)}>
-                <SelectTrigger className="bg-card"><SelectValue placeholder="Select reviewer..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No reviewer</SelectItem>
-                  {REVIEWERS.map((reviewer) => (
-                    <SelectItem key={reviewer.id} value={reviewer.id}>
-                      {reviewer.avatar} {reviewer.name} / {reviewer.department}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label>Department</Label>
+            <Select value={department} onValueChange={(v) => setDepartment(v as DepartmentEnum)}>
+              <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {DEPARTMENTS.map((dept) => (
+                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         
@@ -167,7 +168,6 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
         </div>
       </div>
       
-      {/* Right Column - Security Scan */}
       <div className="space-y-6">
         <div className="space-y-4">
           <Button
@@ -200,13 +200,13 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
           
           <Button
             onClick={handleSave}
-            disabled={!canSave || isBlocked || !commitMessage.trim()}
+            disabled={!canSave || isBlocked || !commitMessage.trim() || isSaving}
             className="w-full gap-2"
             size="lg"
             variant={isBlocked ? 'destructive' : 'default'}
           >
             <Save className="h-5 w-5" />
-            {isBlocked ? 'Save Blocked - Remediate Content' : 'Save to Library'}
+            {isSaving ? 'Saving...' : isBlocked ? 'Save Blocked - Remediate Content' : 'Save to Library'}
           </Button>
         </div>
       </div>
