@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { PromptAsset, REVIEWERS } from '@/lib/synphera-types';
-import { getAssets, saveAsset, createAsset, getCurrentUser, addLineageEntry } from '@/lib/synphera-store';
+import { getAssets, saveAsset, createAsset, getCurrentUser, addLineageEntry, addVersionSnapshot } from '@/lib/synphera-store';
 import { SecurityBadge } from './SecurityBadge';
-import { ChevronDown, Check, GitFork, Clock, FileText, User } from 'lucide-react';
+import { VersionHistoryPanel } from './VersionHistoryPanel';
+import { ChevronDown, Check, GitFork, Clock, FileText, Lock, Unlock, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -20,6 +23,9 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
   const [assets, setAssets] = useState<PromptAsset[]>([]);
   const [editingAsset, setEditingAsset] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [commitMsg, setCommitMsg] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
   const currentUserId = getCurrentUser();
   
   useEffect(() => {
@@ -28,6 +34,13 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
   
   const pendingReviews = assets.filter(a => a.assignedTo === currentUserId && a.status === 'pending_review');
   const releasedAssets = assets.filter(a => a.status === 'released');
+  const filteredReleased = searchQuery
+    ? releasedAssets.filter(a => 
+        a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        a.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        a.content.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : releasedAssets;
   
   const currentUser = REVIEWERS.find(r => r.id === currentUserId);
   
@@ -37,6 +50,12 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
   };
   
   const handleApproveRelease = (asset: PromptAsset) => {
+    if (!commitMsg.trim()) {
+      toast.error('Commit message required for approval');
+      return;
+    }
+    
+    const newVersion = parseFloat((asset.version + 0.1).toFixed(1));
     const updatedAsset: PromptAsset = {
       ...asset,
       content: editContent || asset.content,
@@ -44,9 +63,19 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
       assignedTo: null,
       securityStatus: 'GREEN',
       updatedAt: new Date(),
+      version: newVersion,
+      commitMessage: commitMsg,
     };
     
     saveAsset(updatedAsset);
+    addVersionSnapshot({
+      assetId: asset.id,
+      version: newVersion,
+      content: updatedAsset.content,
+      title: updatedAsset.title,
+      commitMessage: commitMsg,
+      userId: currentUserId,
+    });
     addLineageEntry({
       assetId: asset.id,
       parentId: asset.parentId,
@@ -56,12 +85,16 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
     
     setEditingAsset(null);
     setEditContent('');
-    toast.success(`"${asset.title}" approved and released to library!`);
+    setCommitMsg('');
+    toast.success(`"${asset.title}" approved and released!`);
     onAssetUpdated();
   };
   
   const handleFork = (asset: PromptAsset) => {
-    const forkedAsset = createAsset({
+    if (asset.isLocked) {
+      // Forking a locked asset is fine - it creates a new unlocked copy
+    }
+    createAsset({
       title: `${asset.title} (Fork)`,
       content: asset.content,
       version: parseFloat((asset.version + 0.1).toFixed(1)),
@@ -71,17 +104,19 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
       createdBy: currentUserId,
       department: asset.department,
       securityStatus: 'PENDING',
+      commitMessage: `Forked from "${asset.title}" v${asset.version}`,
+      isLocked: false,
     });
     
-    toast.success(`Forked "${asset.title}" - new draft created!`);
+    toast.success(`Forked "${asset.title}" — new draft created!`);
     onAssetUpdated();
   };
   
   return (
     <div className="space-y-8">
-      {/* Pending Reviews Section */}
+      {/* Pending Reviews */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <Clock className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold">My Pending Reviews</h2>
@@ -92,7 +127,7 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            Logged in as {currentUser?.avatar} {currentUser?.name}
+            {currentUser?.avatar} {currentUser?.name}
           </p>
         </div>
         
@@ -110,18 +145,19 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
                 <Card>
                   <CollapsibleTrigger className="w-full">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <div className="flex items-center gap-3">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <div className="text-left">
-                          <CardTitle className="text-base">{asset.title}</CardTitle>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <div className="text-left min-w-0">
+                          <CardTitle className="text-base truncate">{asset.title}</CardTitle>
                           <CardDescription className="text-xs">
                             v{asset.version} • {asset.department} • {format(asset.createdAt, 'MMM d, yyyy')}
+                            {asset.commitMessage && ` • "${asset.commitMessage}"`}
                           </CardDescription>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <SecurityBadge status={asset.securityStatus} size="sm" />
-                        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </CardHeader>
                   </CollapsibleTrigger>
@@ -139,15 +175,30 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
                           className="min-h-[120px] font-mono text-sm"
                         />
                       </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Commit message for approval</Label>
+                        <Input
+                          placeholder="e.g., Reviewed and approved with minor edits"
+                          value={commitMsg}
+                          onChange={(e) => setCommitMsg(e.target.value)}
+                          className="text-sm bg-card"
+                        />
+                      </div>
                       <div className="flex gap-2">
-                        <Button
-                          onClick={() => handleApproveRelease(asset)}
-                          className="gap-2"
-                        >
+                        <Button onClick={() => handleApproveRelease(asset)} className="gap-2" disabled={!commitMsg.trim()}>
                           <Check className="h-4 w-4" />
                           Approve & Release
                         </Button>
                       </div>
+                      
+                      {/* Version History */}
+                      <VersionHistoryPanel
+                        assetId={asset.id}
+                        currentVersion={asset.version}
+                        isLocked={!!asset.isLocked}
+                        onRollback={onAssetUpdated}
+                        onToggleLock={onAssetUpdated}
+                      />
                     </CardContent>
                   </CollapsibleContent>
                 </Card>
@@ -157,23 +208,35 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
         )}
       </div>
       
-      {/* Released Library Section */}
+      {/* Released Library */}
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <Check className="h-5 w-5 text-status-green" />
-          <h2 className="text-lg font-semibold">Released Library</h2>
-          <Badge variant="secondary">
-            {releasedAssets.length} assets
-          </Badge>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <Check className="h-5 w-5 text-status-green" />
+            <h2 className="text-lg font-semibold">Released Library</h2>
+            <Badge variant="secondary">{releasedAssets.length} assets</Badge>
+          </div>
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search library..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9 bg-card text-sm"
+            />
+          </div>
         </div>
         
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {releasedAssets.map((asset) => (
+          {filteredReleased.map((asset) => (
             <Card key={asset.id} className="group hover:border-primary/30 transition-colors">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-sm line-clamp-1">{asset.title}</CardTitle>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      {asset.isLocked && <Lock className="h-3 w-3 text-status-amber flex-shrink-0" />}
+                      <CardTitle className="text-sm line-clamp-1">{asset.title}</CardTitle>
+                    </div>
                     <CardDescription className="text-xs">
                       v{asset.version} • {asset.department}
                     </CardDescription>
@@ -181,23 +244,54 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
                   <SecurityBadge status="GREEN" size="sm" showLabel={false} />
                 </div>
               </CardHeader>
-              <CardContent className="pt-0">
-                <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
-                  {asset.content}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleFork(asset)}
-                  className="w-full gap-2 opacity-70 group-hover:opacity-100 transition-opacity"
-                >
-                  <GitFork className="h-3 w-3" />
-                  Branch / Fork
-                </Button>
+              <CardContent className="pt-0 space-y-3">
+                <p className="text-xs text-muted-foreground line-clamp-2">{asset.content}</p>
+                {asset.commitMessage && (
+                  <p className="text-[10px] text-muted-foreground/60 italic truncate">
+                    💬 {asset.commitMessage}
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleFork(asset)}
+                    className="flex-1 gap-2 opacity-70 group-hover:opacity-100 transition-opacity"
+                  >
+                    <GitFork className="h-3 w-3" />
+                    Fork
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setExpandedHistory(expandedHistory === asset.id ? null : asset.id)}
+                    className="gap-1 text-xs opacity-70 group-hover:opacity-100"
+                  >
+                    <Clock className="h-3 w-3" />
+                    History
+                  </Button>
+                </div>
+                
+                {expandedHistory === asset.id && (
+                  <div className="animate-fade-in-up">
+                    <VersionHistoryPanel
+                      assetId={asset.id}
+                      currentVersion={asset.version}
+                      isLocked={!!asset.isLocked}
+                      onRollback={onAssetUpdated}
+                      onToggleLock={onAssetUpdated}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
+        {filteredReleased.length === 0 && searchQuery && (
+          <p className="text-center text-sm text-muted-foreground py-8">
+            No assets match "{searchQuery}"
+          </p>
+        )}
       </div>
     </div>
   );

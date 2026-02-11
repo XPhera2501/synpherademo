@@ -2,14 +2,15 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { REVIEWERS, DEPARTMENTS, Department, ROICategory, ScanResult } from '@/lib/synphera-types';
+import { REVIEWERS, DEPARTMENTS, Department, ROICategory, ScanResult, PromptTemplate } from '@/lib/synphera-types';
 import { runSecurityScan } from '@/lib/security-scanner';
 import { createAsset, saveROIFact, getCurrentUser } from '@/lib/synphera-store';
 import { ScanResultPanel } from './ScanResultPanel';
 import { ROIBuilder } from './ROIBuilder';
-import { Shield, Save, AlertTriangle } from 'lucide-react';
+import { PromptEditor } from './PromptEditor';
+import { TemplateLibrary } from './TemplateLibrary';
+import { Shield, Save, AlertTriangle, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ROIEntry {
@@ -28,6 +29,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   const [assignedTo, setAssignedTo] = useState<string>('');
   const [roiEntries, setRoiEntries] = useState<ROIEntry[]>([]);
   const [justification, setJustification] = useState('');
+  const [commitMessage, setCommitMessage] = useState('');
   
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -35,34 +37,36 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   const canSave = scanResult && (scanResult.status === 'GREEN' || (scanResult.status === 'AMBER' && justification.trim().length > 10));
   const isBlocked = scanResult?.status === 'RED';
   
+  const handleTemplateSelect = (template: PromptTemplate) => {
+    setTitle(template.name);
+    setContent(template.content);
+    toast.success(`Template "${template.name}" loaded`);
+  };
+  
   const handleScan = async () => {
     if (!title.trim() || !content.trim()) {
       toast.error('Please enter title and content before scanning');
       return;
     }
-    
     setIsScanning(true);
-    // Simulate some processing time for realism
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
     const result = runSecurityScan(content, title);
     setScanResult(result);
     setIsScanning(false);
     
-    if (result.status === 'GREEN') {
-      toast.success('Security scan passed! Asset is cleared for library.');
-    } else if (result.status === 'AMBER') {
-      toast.warning('Potential issues detected. Review and provide justification.');
-    } else {
-      toast.error('Critical issues found. Remediate content before saving.');
-    }
+    if (result.status === 'GREEN') toast.success('Security scan passed! Asset is cleared for library.');
+    else if (result.status === 'AMBER') toast.warning('Potential issues detected. Review and provide justification.');
+    else toast.error('Critical issues found. Remediate content before saving.');
   };
   
   const handleSave = () => {
     if (!canSave || isBlocked) return;
+    if (!commitMessage.trim()) {
+      toast.error('Commit message is required');
+      return;
+    }
     
     const currentUser = getCurrentUser();
-    
     const asset = createAsset({
       title: title.trim(),
       content: content.trim(),
@@ -75,29 +79,19 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       securityStatus: scanResult!.status,
       lastScanResult: scanResult!,
       justification: justification || undefined,
+      commitMessage: commitMessage.trim(),
+      isLocked: false,
     });
     
-    // Save ROI facts
     roiEntries.forEach(entry => {
       if (entry.value > 0) {
-        saveROIFact({
-          assetId: asset.id,
-          category: entry.category,
-          value: entry.value,
-        });
+        saveROIFact({ assetId: asset.id, category: entry.category, value: entry.value });
       }
     });
     
     toast.success(`Asset "${title}" saved successfully!`);
-    
-    // Reset form
-    setTitle('');
-    setContent('');
-    setAssignedTo('');
-    setRoiEntries([]);
-    setJustification('');
-    setScanResult(null);
-    
+    setTitle(''); setContent(''); setAssignedTo(''); setRoiEntries([]);
+    setJustification(''); setCommitMessage(''); setScanResult(null);
     onAssetCreated();
   };
   
@@ -106,38 +100,44 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       {/* Left Column - Form */}
       <div className="space-y-6">
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">Asset Title</Label>
-            <Input
-              id="title"
-              placeholder="e.g., Customer Sentiment Analysis Prompt"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="bg-card"
-            />
+          {/* Template & Title Row */}
+          <div className="flex items-end gap-3">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="title">Asset Title</Label>
+              <Input
+                id="title"
+                placeholder="e.g., Customer Sentiment Analysis Prompt"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="bg-card"
+              />
+            </div>
+            <TemplateLibrary onSelect={handleTemplateSelect} />
           </div>
           
+          {/* Enhanced Prompt Editor */}
+          <PromptEditor value={content} onChange={setContent} />
+          
+          {/* Commit Message */}
           <div className="space-y-2">
-            <Label htmlFor="content">Prompt Content</Label>
-            <Textarea
-              id="content"
-              placeholder="Enter your prompt content here. The security scanner will check for PII, sensitive data patterns, and proprietary markers..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="min-h-[200px] bg-card font-mono text-sm"
+            <Label htmlFor="commit" className="flex items-center gap-2">
+              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+              Commit Message <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="commit"
+              placeholder="e.g., Initial draft for Q1 campaign analysis"
+              value={commitMessage}
+              onChange={(e) => setCommitMessage(e.target.value)}
+              className="bg-card text-sm"
             />
-            <p className="text-xs text-muted-foreground">
-              ℹ️ Avoid including: email addresses, phone numbers, SSN, IBAN, health/criminal keywords, proprietary markers
-            </p>
           </div>
           
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Department</Label>
               <Select value={department} onValueChange={(v) => setDepartment(v as Department)}>
-                <SelectTrigger className="bg-card">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {DEPARTMENTS.map((dept) => (
                     <SelectItem key={dept} value={dept}>{dept}</SelectItem>
@@ -145,13 +145,10 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
                 </SelectContent>
               </Select>
             </div>
-            
             <div className="space-y-2">
               <Label>Assign to Reviewer (Optional)</Label>
               <Select value={assignedTo || '__none__'} onValueChange={(v) => setAssignedTo(v === '__none__' ? '' : v)}>
-                <SelectTrigger className="bg-card">
-                  <SelectValue placeholder="Select reviewer..." />
-                </SelectTrigger>
+                <SelectTrigger className="bg-card"><SelectValue placeholder="Select reviewer..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">No reviewer</SelectItem>
                   {REVIEWERS.map((reviewer) => (
@@ -165,7 +162,6 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
           </div>
         </div>
         
-        {/* ROI Builder */}
         <div className="rounded-lg border border-border bg-card p-4">
           <ROIBuilder entries={roiEntries} onChange={setRoiEntries} />
         </div>
@@ -186,16 +182,15 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
           
           <ScanResultPanel result={scanResult} isScanning={isScanning} />
           
-          {/* Justification field for AMBER status */}
           {scanResult?.status === 'AMBER' && (
             <div className="space-y-2 animate-fade-in-up">
               <Label htmlFor="justification" className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-status-amber" />
                 Business Justification Required
               </Label>
-              <Textarea
+              <Input
                 id="justification"
-                placeholder="Explain why this content is acceptable despite the warnings (minimum 10 characters)..."
+                placeholder="Explain why this is acceptable (min 10 chars)..."
                 value={justification}
                 onChange={(e) => setJustification(e.target.value)}
                 className="bg-card"
@@ -205,7 +200,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
           
           <Button
             onClick={handleSave}
-            disabled={!canSave || isBlocked}
+            disabled={!canSave || isBlocked || !commitMessage.trim()}
             className="w-full gap-2"
             size="lg"
             variant={isBlocked ? 'destructive' : 'default'}
