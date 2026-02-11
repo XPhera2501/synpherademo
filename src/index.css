@@ -8,56 +8,56 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 213 100% 12%;
-    --foreground: 210 40% 98%;
+    --background: 210 33% 98%;
+    --foreground: 215 25% 15%;
 
-    --card: 213 80% 8%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
 
-    --popover: 213 80% 10%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
 
-    --primary: 174 100% 44%;
-    --primary-foreground: 213 100% 12%;
+    --primary: 174 72% 40%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 213 60% 18%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 210 20% 94%;
+    --secondary-foreground: 215 25% 25%;
 
-    --muted: 213 50% 15%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 15% 50%;
 
-    --accent: 174 100% 44%;
-    --accent-foreground: 213 100% 12%;
+    --accent: 174 72% 40%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 213 40% 25%;
-    --input: 213 40% 20%;
-    --ring: 174 100% 44%;
+    --border: 210 20% 90%;
+    --input: 210 20% 92%;
+    --ring: 174 72% 40%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 213 80% 8%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 174 100% 44%;
-    --sidebar-primary-foreground: 213 100% 12%;
-    --sidebar-accent: 213 50% 15%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 213 40% 25%;
-    --sidebar-ring: 174 100% 44%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 25% 15%;
+    --sidebar-primary: 174 72% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 20% 96%;
+    --sidebar-accent-foreground: 215 25% 25%;
+    --sidebar-border: 210 20% 90%;
+    --sidebar-ring: 174 72% 40%;
     
     /* Custom Synphera tokens */
-    --navy-deep: 213 100% 12%;
-    --navy-medium: 213 80% 18%;
-    --teal-vibrant: 174 100% 44%;
-    --teal-glow: 174 100% 50%;
-    --status-green: 142 76% 36%;
-    --status-amber: 38 92% 50%;
+    --navy-deep: 215 25% 15%;
+    --navy-medium: 210 20% 94%;
+    --teal-vibrant: 174 72% 40%;
+    --teal-glow: 174 80% 48%;
+    --status-green: 152 60% 40%;
+    --status-amber: 38 85% 50%;
     --status-red: 0 72% 51%;
-    --status-green-bg: 142 76% 36% / 0.15;
-    --status-amber-bg: 38 92% 50% / 0.15;
-    --status-red-bg: 0 72% 51% / 0.15;
+    --status-green-bg: 152 60% 40% / 0.08;
+    --status-amber-bg: 38 85% 50% / 0.08;
+    --status-red-bg: 0 72% 51% / 0.08;
   }
 }
 
@@ -74,15 +74,15 @@ All colors MUST be HSL.
 
 @layer components {
   .synphera-gradient {
-    background: linear-gradient(135deg, hsl(213 100% 12%) 0%, hsl(213 80% 18%) 100%);
+    background: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(210 33% 97%) 100%);
   }
   
   .synphera-glow {
-    box-shadow: 0 0 30px hsl(174 100% 44% / 0.2);
+    box-shadow: 0 4px 24px hsl(174 72% 40% / 0.08), 0 1px 4px hsl(215 25% 15% / 0.04);
   }
   
   .synphera-border-glow {
-    border: 1px solid hsl(174 100% 44% / 0.3);
+    border: 1px solid hsl(174 72% 40% / 0.15);
   }
   
   .status-badge {
@@ -112,13 +112,13 @@ All colors MUST be HSL.
   
   .log-box {
     @apply font-mono text-sm p-4 rounded-lg border overflow-auto max-h-64;
-    background: hsl(213 100% 8%);
+    background: hsl(210 33% 98%);
     border-color: hsl(var(--border));
   }
   
   .metric-card {
     @apply p-6 rounded-xl synphera-border-glow;
-    background: linear-gradient(145deg, hsl(213 80% 10%) 0%, hsl(213 80% 8%) 100%);
+    background: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(210 25% 98%) 100%);
   }
   
   .roi-cell {
