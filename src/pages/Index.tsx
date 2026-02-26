@@ -27,31 +27,28 @@ export default function Index() {
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Creation / Ingestion</span>
-              <span className="sm:hidden">Create</span>
+              <span>Ingest</span>
             </TabsTrigger>
             <TabsTrigger 
               value="collaboration"
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Collaboration & Review</span>
-              <span className="sm:hidden">Review</span>
+              <span>Validate</span>
             </TabsTrigger>
             <TabsTrigger 
               value="analytics"
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Analytics</span>
-              <span className="sm:hidden">Stats</span>
+              <span>Catalogue</span>
             </TabsTrigger>
             <TabsTrigger 
               value="help"
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               <HelpCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>Help</span>
+              <span>Dashboard</span>
             </TabsTrigger>
             {isAdmin && (
               <TabsTrigger 
@@ -59,8 +56,7 @@ export default function Index() {
                 className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">Admin</span>
-                <span className="sm:hidden">⚙</span>
+                <span>Admin</span>
               </TabsTrigger>
             )}
           </TabsList>
