@@ -299,7 +299,7 @@ export type Database = {
           {
             foreignKeyName: "roi_configs_department_id_fkey"
             columns: ["department_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "departments"
             referencedColumns: ["id"]
           },
