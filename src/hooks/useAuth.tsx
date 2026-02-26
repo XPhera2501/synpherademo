@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 
-export type AppRole = 'admin' | 'creator' | 'reviewer' | 'viewer';
+export type AppRole = 'super_admin' | 'admin' | 'creator' | 'reviewer' | 'viewer';
 
 interface Profile {
   id: string;
@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     if (roleData && roleData.length > 0) {
       // Pick highest privilege role
-      const roleOrder: AppRole[] = ['admin', 'creator', 'reviewer', 'viewer'];
+      const roleOrder: AppRole[] = ['super_admin', 'admin', 'creator', 'reviewer', 'viewer'];
       const bestRole = roleOrder.find(r => roleData.some(d => d.role === r)) || 'viewer';
       setRole(bestRole);
     }
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRole('viewer');
   };
 
-  const isAdmin = role === 'admin';
+  const isAdmin = role === 'admin' || role === 'super_admin';
   const isCreator = role === 'admin' || role === 'creator';
   const isReviewer = role === 'admin' || role === 'creator' || role === 'reviewer';
   const canEdit = isCreator;
