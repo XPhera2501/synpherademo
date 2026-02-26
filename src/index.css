@@ -2,54 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Synphera Design System – Poppins, Teal Primary, Deep Navy */
+/* SynPhera Design Charter – Montserrat + Open Sans, Purple/Magenta, Deep Space Navy */
 
 @layer base {
   :root {
-    --background: 220 18% 6%;
-    --foreground: 210 20% 92%;
+    --background: 222 47% 6%;
+    --foreground: 0 0% 95%;
 
-    --card: 220 16% 10%;
-    --card-foreground: 210 20% 92%;
+    --card: 222 40% 10%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 220 16% 10%;
-    --popover-foreground: 210 20% 92%;
+    --popover: 222 40% 10%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 176 65% 45%;
-    --primary-foreground: 220 18% 6%;
+    --primary: 291 65% 42%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 16%;
-    --secondary-foreground: 210 20% 85%;
+    --secondary: 222 30% 16%;
+    --secondary-foreground: 0 0% 85%;
 
-    --muted: 220 14% 14%;
-    --muted-foreground: 215 12% 55%;
+    --muted: 222 25% 14%;
+    --muted-foreground: 222 10% 55%;
 
-    --accent: 176 50% 22%;
-    --accent-foreground: 176 65% 75%;
+    --accent: 291 50% 25%;
+    --accent-foreground: 291 65% 75%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 14% 18%;
-    --input: 220 14% 16%;
-    --ring: 176 65% 45%;
+    --border: 222 20% 18%;
+    --input: 222 25% 16%;
+    --ring: 291 65% 42%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 220 16% 8%;
-    --sidebar-foreground: 210 20% 92%;
-    --sidebar-primary: 176 65% 45%;
-    --sidebar-primary-foreground: 220 18% 6%;
-    --sidebar-accent: 220 14% 14%;
-    --sidebar-accent-foreground: 210 20% 85%;
-    --sidebar-border: 220 14% 18%;
-    --sidebar-ring: 176 65% 45%;
+    --sidebar-background: 222 40% 8%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 291 65% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 25% 14%;
+    --sidebar-accent-foreground: 0 0% 85%;
+    --sidebar-border: 222 20% 18%;
+    --sidebar-ring: 291 65% 42%;
 
-    /* Custom Synphera tokens */
-    --navy-deep: 220 18% 6%;
-    --navy-medium: 220 16% 10%;
-    --teal-vibrant: 176 65% 45%;
-    --teal-glow: 176 80% 55%;
+    /* SynPhera brand tokens */
+    --synphera-purple: 291 65% 42%;
+    --synphera-magenta: 293 96% 62%;
+    --deep-space: 222 47% 6%;
+    --strategic-grey: 0 0% 53%;
     --status-green: 152 60% 45%;
     --status-amber: 38 85% 55%;
     --status-red: 0 72% 55%;
@@ -57,7 +57,8 @@
     --status-amber-bg: 38 85% 55% / 0.12;
     --status-red-bg: 0 72% 55% / 0.12;
 
-    --gradient-hero: linear-gradient(135deg, hsl(220 18% 6%) 0%, hsl(220 16% 12%) 50%, hsl(176 65% 45% / 0.08) 100%);
+    --gradient-synphera: linear-gradient(45deg, hsl(291 65% 42%) 0%, hsl(293 96% 62%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(222 47% 6%) 0%, hsl(222 40% 12%) 50%, hsl(291 65% 42% / 0.08) 100%);
   }
 }
 
@@ -68,11 +69,12 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Poppins', sans-serif;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
   }
 }
 
@@ -81,12 +83,23 @@
     background: var(--gradient-hero);
   }
 
+  .synphera-brand-gradient {
+    background: var(--gradient-synphera);
+  }
+
   .synphera-glow {
-    box-shadow: 0 4px 24px hsl(176 65% 45% / 0.1), 0 1px 4px hsl(220 18% 6% / 0.4);
+    box-shadow: 0 4px 24px hsl(291 65% 42% / 0.15), 0 1px 4px hsl(222 47% 6% / 0.4);
   }
 
   .synphera-border-glow {
-    border: 1px solid hsl(176 65% 45% / 0.2);
+    border: 1px solid hsl(291 65% 42% / 0.25);
+  }
+
+  .synphera-text-gradient {
+    background: var(--gradient-synphera);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   .status-badge {
@@ -116,13 +129,13 @@
 
   .log-box {
     @apply font-mono text-sm p-4 rounded-lg border overflow-auto max-h-64;
-    background: hsl(220 16% 8%);
+    background: hsl(222 40% 8%);
     border-color: hsl(var(--border));
   }
 
   .metric-card {
     @apply p-6 rounded-xl synphera-border-glow;
-    background: linear-gradient(145deg, hsl(220 16% 10%) 0%, hsl(220 16% 12%) 100%);
+    background: linear-gradient(145deg, hsl(222 40% 10%) 0%, hsl(222 40% 12%) 100%);
   }
 
   .roi-cell {

@@ -56,12 +56,12 @@ export default function Landing() {
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/30">
-              <Shield className="h-5 w-5 text-primary" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl synphera-brand-gradient">
+              <Shield className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold tracking-tight">
-              Synphera<span className="text-primary">™</span>
-              <span className="text-xs font-normal text-muted-foreground ml-1.5">V13</span>
+            <span className="text-xl font-heading font-bold tracking-tight">
+              SynPhera<span className="synphera-text-gradient">™</span>
+              <span className="text-xs font-sans font-normal text-muted-foreground ml-1.5">by X-Phera</span>
             </span>
           </div>
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
@@ -70,7 +70,7 @@ export default function Landing() {
             <button onClick={() => scrollTo('terms')} className="hover:text-foreground transition-colors">Terms</button>
             <button onClick={() => scrollTo('privacy')} className="hover:text-foreground transition-colors">Privacy</button>
           </nav>
-          <Button onClick={() => navigate('/auth')} className="gap-2">
+          <Button onClick={() => navigate('/auth')} className="gap-2 synphera-brand-gradient border-0 text-primary-foreground hover:opacity-90">
             Sign In / Sign Up <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
@@ -79,21 +79,21 @@ export default function Landing() {
       <main className="pt-16">
         {/* Hero Section */}
         <section className="synphera-gradient landing-section relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,hsl(176_65%_45%/0.08),transparent_60%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,hsl(291_65%_42%/0.08),transparent_60%)]" />
           <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-20 sm:py-32 text-center">
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm text-primary mb-8">
               <Zap className="h-3.5 w-3.5" />
               Enterprise-Grade AI Governance
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight max-w-4xl mx-auto">
+            <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight max-w-4xl mx-auto">
               Secure AI Prompt Governance{' '}
-              <span className="text-primary">for Enterprises</span>
+              <span className="synphera-text-gradient">for Enterprises</span>
             </h1>
             <p className="mt-6 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
               Create, collaborate, and manage LLM assets with compliance, ROI tracking, and real-time validation.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" onClick={() => navigate('/auth')} className="gap-2 text-base px-8 h-12">
+              <Button size="lg" onClick={() => navigate('/auth')} className="gap-2 text-base px-8 h-12 synphera-brand-gradient border-0 text-primary-foreground hover:opacity-90">
                 Get Started <ArrowRight className="h-5 w-5" />
               </Button>
               <Button size="lg" variant="outline" onClick={() => scrollTo('how-it-works')} className="gap-2 text-base px-8 h-12">
@@ -107,7 +107,7 @@ export default function Landing() {
         <section id="how-it-works" className="landing-section">
           <div className="mx-auto max-w-4xl px-4 sm:px-6">
             <div className="text-center mb-12">
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">How Synphera Works</h2>
+              <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight">How SynPhera Works</h2>
               <p className="mt-4 text-muted-foreground text-lg">Five core modules, one unified governance platform.</p>
             </div>
             <Accordion type="single" collapsible className="space-y-3">
@@ -153,7 +153,7 @@ export default function Landing() {
                       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
                         <Icon className="h-4.5 w-4.5 text-primary" />
                       </div>
-                      <span className="text-base font-semibold">{title}</span>
+                      <span className="text-base font-heading font-semibold">{title}</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="text-muted-foreground pb-5 pl-12">
@@ -169,7 +169,7 @@ export default function Landing() {
         <section id="benefits" className="landing-section bg-card/30">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="text-center mb-12">
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Why Choose Synphera?</h2>
+              <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight">Why Choose SynPhera?</h2>
               <p className="mt-4 text-muted-foreground text-lg">Enterprise security, team collaboration, and measurable ROI.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -198,7 +198,7 @@ export default function Landing() {
                     <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 mb-5 ${color}`}>
                       <Icon className="h-6 w-6" />
                     </div>
-                    <h3 className="text-xl font-semibold mb-3">{title}</h3>
+                    <h3 className="font-heading text-xl font-semibold mb-3">{title}</h3>
                     <p className="text-muted-foreground leading-relaxed">{description}</p>
                   </CardContent>
                 </Card>
@@ -225,19 +225,19 @@ export default function Landing() {
         {/* Terms & Conditions */}
         <section id="terms" className="landing-section">
           <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <h2 className="text-3xl font-bold tracking-tight mb-8">Terms & Conditions</h2>
+            <h2 className="font-heading text-3xl font-bold tracking-tight mb-8">Terms & Conditions</h2>
             <Card className="bg-card border-border">
               <CardContent className="p-8 prose prose-invert prose-sm max-w-none">
                 {termsContent ? (
                   <div className="whitespace-pre-wrap text-muted-foreground leading-relaxed">{termsContent}</div>
                 ) : (
                   <div className="space-y-4 text-muted-foreground leading-relaxed">
-                    <p><strong className="text-foreground">1. Acceptance of Terms.</strong> By accessing or using Synphera ("the Platform"), you agree to be bound by these Terms & Conditions. If you do not agree, do not use the Platform.</p>
-                    <p><strong className="text-foreground">2. Use License.</strong> Subject to these Terms, Synphera grants you a limited, non-exclusive, non-transferable license to use the Platform for your organization's internal AI governance needs.</p>
+                    <p><strong className="text-foreground">1. Acceptance of Terms.</strong> By accessing or using SynPhera ("the Platform"), you agree to be bound by these Terms & Conditions. If you do not agree, do not use the Platform.</p>
+                    <p><strong className="text-foreground">2. Use License.</strong> Subject to these Terms, SynPhera grants you a limited, non-exclusive, non-transferable license to use the Platform for your organization's internal AI governance needs.</p>
                     <p><strong className="text-foreground">3. User Responsibilities.</strong> You are responsible for maintaining the confidentiality of your account credentials, ensuring all prompt assets comply with applicable laws, and not using the Platform for any unlawful purpose.</p>
-                    <p><strong className="text-foreground">4. Data Ownership.</strong> You retain ownership of all prompt assets, templates, and content you create on the Platform. Synphera does not claim ownership over your data.</p>
+                    <p><strong className="text-foreground">4. Data Ownership.</strong> You retain ownership of all prompt assets, templates, and content you create on the Platform. SynPhera does not claim ownership over your data.</p>
                     <p><strong className="text-foreground">5. Service Availability.</strong> We strive for 99.9% uptime but do not guarantee uninterrupted access. Scheduled maintenance windows will be communicated in advance.</p>
-                    <p><strong className="text-foreground">6. Limitation of Liability.</strong> Synphera shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the Platform.</p>
+                    <p><strong className="text-foreground">6. Limitation of Liability.</strong> SynPhera shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the Platform.</p>
                     <p><strong className="text-foreground">7. Modifications.</strong> We reserve the right to modify these Terms at any time. Continued use of the Platform constitutes acceptance of modified Terms.</p>
                   </div>
                 )}
@@ -249,7 +249,7 @@ export default function Landing() {
         {/* Privacy Statement */}
         <section id="privacy" className="landing-section bg-card/30">
           <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <h2 className="text-3xl font-bold tracking-tight mb-8">Privacy Statement</h2>
+            <h2 className="font-heading text-3xl font-bold tracking-tight mb-8">Privacy Statement</h2>
             <Card className="bg-card border-border">
               <CardContent className="p-8 prose prose-invert prose-sm max-w-none">
                 {privacyContent ? (
@@ -257,7 +257,7 @@ export default function Landing() {
                 ) : (
                   <div className="space-y-4 text-muted-foreground leading-relaxed">
                     <p><strong className="text-foreground">Data Collection.</strong> We collect only the information necessary to provide our services: email address, display name, and usage analytics. We do not sell your data to third parties.</p>
-                    <p><strong className="text-foreground">GDPR Compliance.</strong> Synphera is fully GDPR-compliant. You have the right to access, rectify, or delete your personal data at any time by contacting our data protection officer.</p>
+                    <p><strong className="text-foreground">GDPR Compliance.</strong> SynPhera is fully GDPR-compliant. You have the right to access, rectify, or delete your personal data at any time by contacting our data protection officer.</p>
                     <p><strong className="text-foreground">Data Storage.</strong> All data is stored securely with AES-256 encryption at rest and TLS 1.3 in transit. Our infrastructure is hosted in SOC 2 Type II certified data centers.</p>
                     <p><strong className="text-foreground">Audit Trails.</strong> All actions within the Platform are logged for compliance purposes. Audit logs are retained for 7 years in accordance with enterprise governance requirements.</p>
                     <p><strong className="text-foreground">Cookies.</strong> We use essential cookies only for authentication and session management. No third-party tracking cookies are used.</p>
@@ -275,7 +275,7 @@ export default function Landing() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Shield className="h-4 w-4 text-primary" />
-            <span>© 2026 Synphera. All rights reserved.</span>
+            <span>© 2026 SynPhera™ by X-Phera. All rights reserved.</span>
           </div>
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <button onClick={() => scrollTo('terms')} className="hover:text-foreground transition-colors">T&C</button>
