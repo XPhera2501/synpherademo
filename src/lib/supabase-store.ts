@@ -81,9 +81,70 @@ export async function createAsset(asset: TablesInsert<'prompt_assets'>): Promise
 }
 
 export async function updateAsset(id: string, updates: TablesUpdate<'prompt_assets'>): Promise<DbPromptAsset | null> {
-  const { data, error } = await supabase.from('prompt_assets').update(updates).eq('id', id).select().single();
+  // Never allow created_by to be overwritten via code (DB trigger also enforces this)
+  const { created_by, ...safeUpdates } = updates as any;
+  const { data, error } = await supabase.from('prompt_assets').update(safeUpdates).eq('id', id).select().single();
   if (error) { console.error('updateAsset error:', error); return null; }
   return data;
+}
+
+/**
+ * Update an asset with automatic version bump, snapshot, lineage, and audit logging.
+ * This is the preferred method for all user-facing edits.
+ */
+export async function updateAssetWithVersioning(
+  id: string,
+  updates: TablesUpdate<'prompt_assets'>,
+  userId: string,
+  commitMessage: string,
+  auditAction: string = 'update',
+): Promise<DbPromptAsset | null> {
+  const asset = await getAssetById(id);
+  if (!asset) return null;
+
+  const newVersion = parseFloat((asset.version + 0.1).toFixed(1));
+  const merged = {
+    ...updates,
+    version: newVersion,
+    commit_message: commitMessage,
+  };
+
+  const updated = await updateAsset(id, merged);
+  if (!updated) return null;
+
+  // Create version snapshot
+  await addVersionSnapshot({
+    asset_id: id,
+    version: newVersion,
+    content: updated.content,
+    title: updated.title,
+    commit_message: commitMessage,
+    user_id: userId,
+  });
+
+  // Lineage entry
+  await addLineageEntry({
+    asset_id: id,
+    parent_id: asset.parent_id,
+    action: auditAction === 'approve_release' ? 'released' : 'updated',
+    user_id: userId,
+  });
+
+  // Audit log
+  await addAuditLog({
+    user_id: userId,
+    action: auditAction,
+    target_type: 'prompt_asset',
+    target_id: id,
+    details: {
+      version: newVersion,
+      commit: commitMessage,
+      previous_version: asset.version,
+      original_author: asset.created_by,
+    },
+  });
+
+  return updated;
 }
 
 export async function deleteAsset(id: string): Promise<boolean> {
@@ -179,25 +240,13 @@ export async function rollbackAsset(assetId: string, toVersion: number, userId: 
   const asset = await getAssetById(assetId);
   if (!asset || asset.is_locked) return null;
 
-  const newVersion = parseFloat((asset.version + 0.1).toFixed(1));
-  const updated = await updateAsset(assetId, {
-    content: target.content,
-    title: target.title,
-    version: newVersion,
-    commit_message: `Rollback to v${toVersion}`,
-  });
-
-  if (updated) {
-    await addVersionSnapshot({
-      asset_id: assetId,
-      version: newVersion,
-      content: target.content,
-      title: target.title,
-      commit_message: `Rollback to v${toVersion}`,
-      user_id: userId,
-    });
-  }
-  return updated;
+  return updateAssetWithVersioning(
+    assetId,
+    { content: target.content, title: target.title },
+    userId,
+    `Rollback to v${toVersion}`,
+    'rollback',
+  );
 }
 
 export async function toggleLock(assetId: string): Promise<boolean> {
