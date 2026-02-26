@@ -16,7 +16,7 @@ import { ROIBuilder } from './ROIBuilder';
 import { PromptEditor } from './PromptEditor';
 import { TemplateLibrary } from './TemplateLibrary';
 import { useAuth } from '@/hooks/useAuth';
-import { Shield, Save, AlertTriangle, MessageSquare, Lock, Tag, X, Info, CheckCircle, XCircle, Lightbulb, FolderOpen } from 'lucide-react';
+import { Shield, Save, AlertTriangle, MessageSquare, Lock, Tag, X, Info, CheckCircle, XCircle, Lightbulb, FolderOpen, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ROIEntry {
@@ -158,195 +158,249 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   }
   
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div className="space-y-6">
-        <div className="space-y-4">
-          <div className="flex items-end gap-3">
-            <div className="flex-1 space-y-2">
-              <Label htmlFor="title">Asset Title</Label>
+    <div className="space-y-6">
+      {/* Top row: Prompt Content + Benefits */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Top-Left: Prompt Content */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Prompt Content</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <PromptEditor value={content} onChange={handleContentChange} label="Content" />
+            
+            <Button
+              onClick={handleScan}
+              disabled={isScanning || !title.trim() || !content.trim()}
+              className="gap-2"
+            >
+              <Shield className="h-4 w-4" />
+              {isScanning ? 'Scanning...' : 'Ingest'}
+            </Button>
+
+            <div className="space-y-2">
+              <Label htmlFor="title">Prompt Title</Label>
+              <div className="flex items-end gap-3">
+                <Input
+                  id="title"
+                  placeholder="e.g., Customer Sentiment Analysis Prompt"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="bg-card"
+                />
+                <TemplateLibrary onSelect={handleTemplateSelect} />
+              </div>
+            </div>
+
+            {/* Department + Category row */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Department</Label>
+                <Select value={department} onValueChange={(v) => setDepartment(v as DepartmentEnum)}>
+                  <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {DEPARTMENTS.map((dept) => (
+                      <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                  Category
+                </Label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="bg-card"><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map(c => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Tags */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                Tags
+              </Label>
+              <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 rounded-lg border border-border bg-card">
+                {tags.map(tag => (
+                  <Badge key={tag} variant="secondary" className="gap-1 text-xs h-6">
+                    {tag}
+                    <button onClick={() => handleRemoveTag(tag)} className="hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+                <Input
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  onBlur={handleAddTag}
+                  placeholder={tags.length === 0 ? "Add tags (press Enter)" : ""}
+                  className="border-0 bg-transparent shadow-none h-6 min-w-[100px] flex-1 p-0 text-sm focus-visible:ring-0"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="commit" className="flex items-center gap-2">
+                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                Commit Message <span className="text-destructive">*</span>
+              </Label>
               <Input
-                id="title"
-                placeholder="e.g., Customer Sentiment Analysis Prompt"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="bg-card"
+                id="commit"
+                placeholder="e.g., Initial draft for Q1 campaign analysis"
+                value={commitMessage}
+                onChange={(e) => setCommitMessage(e.target.value)}
+                className="bg-card text-sm"
               />
             </div>
-            <TemplateLibrary onSelect={handleTemplateSelect} />
-          </div>
-          
-          <PromptEditor value={content} onChange={handleContentChange} />
+          </CardContent>
+        </Card>
 
-          {/* CLEAR Framework Guidance */}
-          <Card className="border-dashed border-primary/20 bg-primary/5">
-            <CardContent className="py-3 px-4">
-              <div className="flex items-start gap-2">
-                <Lightbulb className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <p className="font-medium text-foreground">CLEAR Framework</p>
-                  <div className="grid grid-cols-5 gap-1">
-                    {[
-                      { letter: 'C', word: 'Concise', tip: 'Remove filler words' },
-                      { letter: 'L', word: 'Logical', tip: 'Structured flow' },
-                      { letter: 'E', word: 'Explicit', tip: 'No ambiguity' },
-                      { letter: 'A', word: 'Adaptive', tip: 'Handles edge cases' },
-                      { letter: 'R', word: 'Reflective', tip: 'Self-checks output' },
-                    ].map(({ letter, word, tip }) => (
-                      <Tooltip key={letter}>
-                        <TooltipTrigger asChild>
-                          <div className="text-center cursor-help">
-                            <span className="font-bold text-primary">{letter}</span>
-                            <p className="text-[10px]">{word}</p>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent><p className="text-xs">{tip}</p></TooltipContent>
-                      </Tooltip>
-                    ))}
+        {/* Top-Right: Benefits (ROI) */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Benefits</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ROIBuilder entries={roiEntries} onChange={setRoiEntries} department={department} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bottom row: Compliance Validation + Prompt Profile Summary */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Bottom-Left: Compliance Validation */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Compliance Validation</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* CLEAR Framework Guidance */}
+            <Card className="border-dashed border-primary/20 bg-primary/5">
+              <CardContent className="py-3 px-4">
+                <div className="flex items-start gap-2">
+                  <Lightbulb className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p className="font-medium text-foreground">CLEAR Framework</p>
+                    <div className="grid grid-cols-5 gap-1">
+                      {[
+                        { letter: 'C', word: 'Concise', tip: 'Remove filler words' },
+                        { letter: 'L', word: 'Logical', tip: 'Structured flow' },
+                        { letter: 'E', word: 'Explicit', tip: 'No ambiguity' },
+                        { letter: 'A', word: 'Adaptive', tip: 'Handles edge cases' },
+                        { letter: 'R', word: 'Reflective', tip: 'Self-checks output' },
+                      ].map(({ letter, word, tip }) => (
+                        <Tooltip key={letter}>
+                          <TooltipTrigger asChild>
+                            <div className="text-center cursor-help">
+                              <span className="font-bold text-primary">{letter}</span>
+                              <p className="text-[10px]">{word}</p>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent><p className="text-xs">{tip}</p></TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Prompt Validation */}
-          {validation && (
-            <Card className={`border ${validation.score >= 70 ? 'border-status-green/30 bg-status-green/5' : validation.score >= 40 ? 'border-status-amber/30 bg-status-amber/5' : 'border-status-red/30 bg-status-red/5'}`}>
-              <CardContent className="py-3 px-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium flex items-center gap-1.5">
-                    {validation.score >= 70 ? <CheckCircle className="h-3.5 w-3.5 text-status-green" /> : <Info className="h-3.5 w-3.5 text-status-amber" />}
-                    Quality Score: {validation.score}/100
-                  </span>
-                  <Badge variant="outline" className="text-[10px]">{validation.checks.filter(c => c.passed).length}/{validation.checks.length} passed</Badge>
-                </div>
-                <div className="space-y-1">
-                  {validation.checks.filter(c => !c.passed).map((check, i) => (
-                    <p key={i} className="text-[11px] text-muted-foreground flex items-center gap-1">
-                      <XCircle className="h-3 w-3 text-status-amber flex-shrink-0" />
-                      {check.message}
-                    </p>
-                  ))}
                 </div>
               </CardContent>
             </Card>
-          )}
-          
-          <div className="space-y-2">
-            <Label htmlFor="commit" className="flex items-center gap-2">
-              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-              Commit Message <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="commit"
-              placeholder="e.g., Initial draft for Q1 campaign analysis"
-              value={commitMessage}
-              onChange={(e) => setCommitMessage(e.target.value)}
-              className="bg-card text-sm"
-            />
-          </div>
 
-          {/* Department + Category row */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Department</Label>
-              <Select value={department} onValueChange={(v) => setDepartment(v as DepartmentEnum)}>
-                <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {DEPARTMENTS.map((dept) => (
-                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5">
-                <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
-                Category
-              </Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="bg-card"><SelectValue placeholder="Select category" /></SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map(c => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+            <ScanResultPanel result={scanResult} isScanning={isScanning} />
 
-          {/* Tags */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5">
-              <Tag className="h-3.5 w-3.5 text-muted-foreground" />
-              Tags
-            </Label>
-            <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 rounded-lg border border-border bg-card">
-              {tags.map(tag => (
-                <Badge key={tag} variant="secondary" className="gap-1 text-xs h-6">
-                  {tag}
-                  <button onClick={() => handleRemoveTag(tag)} className="hover:text-destructive">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
+            {scanResult?.status === 'AMBER' && (
+              <div className="space-y-2 animate-fade-in-up">
+                <Label htmlFor="justification" className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-status-amber" />
+                  Business Justification Required
+                </Label>
+                <Input
+                  id="justification"
+                  placeholder="Explain why this is acceptable (min 10 chars)..."
+                  value={justification}
+                  onChange={(e) => setJustification(e.target.value)}
+                  className="bg-card"
+                />
+              </div>
+            )}
+
+            {/* Prompt Validation */}
+            {validation && (
+              <Card className={`border ${validation.score >= 70 ? 'border-status-green/30 bg-status-green/5' : validation.score >= 40 ? 'border-status-amber/30 bg-status-amber/5' : 'border-status-red/30 bg-status-red/5'}`}>
+                <CardContent className="py-3 px-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium flex items-center gap-1.5">
+                      {validation.score >= 70 ? <CheckCircle className="h-3.5 w-3.5 text-status-green" /> : <Info className="h-3.5 w-3.5 text-status-amber" />}
+                      Validation Outcome — Score: {validation.score}/100
+                    </span>
+                    <Badge variant="outline" className="text-[10px]">{validation.checks.filter(c => c.passed).length}/{validation.checks.length} passed</Badge>
+                  </div>
+                  <div className="space-y-1">
+                    {validation.checks.filter(c => !c.passed).map((check, i) => (
+                      <p key={i} className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <XCircle className="h-3 w-3 text-status-amber flex-shrink-0" />
+                        {check.message}
+                      </p>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Bottom-Right: Overall Prompt Profile Summary */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg italic">Overall Prompt Profile Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 text-sm">
+              {[
+                { label: 'Type', value: category || 'Not specified' },
+                { label: 'Stability', value: validation ? (validation.score >= 70 ? 'High' : validation.score >= 40 ? 'Medium' : 'Low') : 'Pending scan' },
+                { label: 'Determinism', value: content.length > 100 ? 'Very High Post-Implementation' : 'Pending' },
+                { label: 'LLM Dependency', value: 'Limited to presentation layer' },
+                { label: 'Audit Readiness', value: scanResult ? (scanResult.status === 'GREEN' ? 'Strong (logging enabled)' : 'Requires remediation') : 'Pending scan' },
+                { label: 'Scalability', value: 'Enterprise-grade' },
+                { label: 'Code Portability', value: tags.length > 0 ? 'High' : 'Medium' },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex gap-2">
+                  <span className="font-semibold text-foreground whitespace-nowrap">{label}:</span>
+                  <span className="text-muted-foreground">{value}</span>
+                </div>
               ))}
-              <Input
-                value={tagInput}
-                onChange={e => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                onBlur={handleAddTag}
-                placeholder={tags.length === 0 ? "Add tags (press Enter)" : ""}
-                className="border-0 bg-transparent shadow-none h-6 min-w-[100px] flex-1 p-0 text-sm focus-visible:ring-0"
-              />
             </div>
-          </div>
-        </div>
-        
-        <div className="rounded-lg border border-border bg-card p-4">
-          <ROIBuilder entries={roiEntries} onChange={setRoiEntries} department={department} />
-        </div>
+          </CardContent>
+        </Card>
       </div>
-      
-      <div className="space-y-6">
-        <div className="space-y-4">
-          <Button
-            onClick={handleScan}
-            disabled={isScanning || !title.trim() || !content.trim()}
-            className="w-full gap-2"
-            size="lg"
-          >
-            <Shield className="h-5 w-5" />
-            {isScanning ? 'Scanning...' : 'Run Security & PII Scan'}
-          </Button>
-          
-          <ScanResultPanel result={scanResult} isScanning={isScanning} />
-          
-          {scanResult?.status === 'AMBER' && (
-            <div className="space-y-2 animate-fade-in-up">
-              <Label htmlFor="justification" className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-status-amber" />
-                Business Justification Required
-              </Label>
-              <Input
-                id="justification"
-                placeholder="Explain why this is acceptable (min 10 chars)..."
-                value={justification}
-                onChange={(e) => setJustification(e.target.value)}
-                className="bg-card"
-              />
-            </div>
-          )}
-          
-          <Button
-            onClick={handleSave}
-            disabled={!canSave || isBlocked || !commitMessage.trim() || isSaving}
-            className="w-full gap-2"
-            size="lg"
-            variant={isBlocked ? 'destructive' : 'default'}
-          >
-            <Save className="h-5 w-5" />
-            {isSaving ? 'Saving...' : isBlocked ? 'Save Blocked - Remediate Content' : 'Save to Library'}
-          </Button>
-        </div>
+
+      {/* Bottom action buttons */}
+      <div className="flex items-center gap-3">
+        <Button
+          onClick={handleSave}
+          disabled={!canSave || isBlocked || !commitMessage.trim() || isSaving}
+          className="gap-2"
+          variant={isBlocked ? 'destructive' : 'default'}
+        >
+          <Save className="h-4 w-4" />
+          {isSaving ? 'Saving...' : 'Save to Catalogue'}
+        </Button>
+        <Button
+          variant="outline"
+          disabled={!canSave || isBlocked || !commitMessage.trim()}
+          className="gap-2"
+        >
+          <Users className="h-4 w-4" />
+          Assign for Review
+        </Button>
       </div>
     </div>
   );
