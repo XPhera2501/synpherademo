@@ -1,20 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ROICategory, ROI_CATEGORIES } from '@/lib/synphera-types';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Info, Plus, X, DollarSign } from 'lucide-react';
+import { Info, DollarSign, Sparkles } from 'lucide-react';
 
 interface ROIEntry {
   category: ROICategory;
   value: number;
 }
 
+interface ROIConfig {
+  category: string;
+  formula: string;
+  weight: number | null;
+  department_id: string | null;
+}
+
 interface ROIBuilderProps {
   entries: ROIEntry[];
   onChange: (entries: ROIEntry[]) => void;
+  department?: string;
 }
 
 const CATEGORY_TOOLTIPS: Record<ROICategory, string> = {
@@ -33,10 +43,53 @@ const CATEGORY_ICONS: Record<ROICategory, string> = {
   'New Value': '✨',
 };
 
-export function ROIBuilder({ entries, onChange }: ROIBuilderProps) {
+export function ROIBuilder({ entries, onChange, department }: ROIBuilderProps) {
   const [selectedCategories, setSelectedCategories] = useState<ROICategory[]>(
     entries.map(e => e.category)
   );
+  const [deptConfigs, setDeptConfigs] = useState<ROIConfig[]>([]);
+  const [preferredCategories, setPreferredCategories] = useState<string[]>([]);
+
+  // Fetch department ROI configs and pre-populate preferred categories
+  useEffect(() => {
+    const fetchConfigs = async () => {
+      const { data } = await supabase.from('roi_configs').select('*');
+      if (!data) return;
+      setDeptConfigs(data);
+
+      // Find configs matching the user's department (or global configs with null department_id)
+      if (department) {
+        // Get department ID from departments table
+        const { data: deptData } = await supabase.from('departments').select('id').eq('name', department).maybeSingle();
+        const deptId = deptData?.id;
+
+        const matching = data.filter(c =>
+          c.department_id === deptId || c.department_id === null
+        );
+
+        // Sort by weight (highest first), then get preferred categories
+        const sorted = matching.sort((a, b) => (b.weight ?? 1) - (a.weight ?? 1));
+        const preferred = sorted.map(c => c.category);
+        setPreferredCategories([...new Set(preferred)]);
+
+        // Auto-select top preferred categories if no entries yet
+        if (entries.length === 0 && preferred.length > 0) {
+          const topCategories = preferred.slice(0, 2) as ROICategory[];
+          const validCategories = topCategories.filter(c => ROI_CATEGORIES.includes(c));
+          if (validCategories.length > 0) {
+            setSelectedCategories(validCategories);
+            onChange(validCategories.map(c => ({ category: c, value: 0 })));
+          }
+        }
+      }
+    };
+    fetchConfigs();
+  }, [department]);
+
+  const getFormulaHint = (category: ROICategory): string | null => {
+    const config = deptConfigs.find(c => c.category === category);
+    return config?.formula || null;
+  };
   
   const handleCategoryToggle = (category: ROICategory, checked: boolean) => {
     if (checked) {
@@ -55,6 +108,16 @@ export function ROIBuilder({ entries, onChange }: ROIBuilderProps) {
   };
   
   const totalROI = entries.reduce((sum, e) => sum + e.value, 0);
+
+  // Sort categories: preferred first
+  const sortedCategories = [...ROI_CATEGORIES].sort((a, b) => {
+    const aIdx = preferredCategories.indexOf(a);
+    const bIdx = preferredCategories.indexOf(b);
+    if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+    if (aIdx !== -1) return -1;
+    if (bIdx !== -1) return 1;
+    return 0;
+  });
   
   return (
     <div className="space-y-4">
@@ -68,11 +131,20 @@ export function ROIBuilder({ entries, onChange }: ROIBuilderProps) {
           <span className="text-muted-foreground">total value</span>
         </div>
       </div>
+
+      {preferredCategories.length > 0 && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Sparkles className="h-3.5 w-3.5 text-primary" />
+          <span>Pre-selected based on {department} department config</span>
+        </div>
+      )}
       
       <div className="grid gap-3">
-        {ROI_CATEGORIES.map((category) => {
+        {sortedCategories.map((category) => {
           const isSelected = selectedCategories.includes(category);
           const entry = entries.find(e => e.category === category);
+          const isPreferred = preferredCategories.includes(category);
+          const formulaHint = getFormulaHint(category);
           
           return (
             <div 
@@ -90,9 +162,14 @@ export function ROIBuilder({ entries, onChange }: ROIBuilderProps) {
                 <span className="text-lg">{CATEGORY_ICONS[category]}</span>
                 <Label 
                   htmlFor={category}
-                  className="flex-1 cursor-pointer text-sm font-medium"
+                  className="flex-1 cursor-pointer text-sm font-medium flex items-center gap-1.5"
                 >
                   {category}
+                  {isPreferred && (
+                    <Badge variant="outline" className="text-[9px] h-4 px-1 border-primary/30 text-primary">
+                      Recommended
+                    </Badge>
+                  )}
                 </Label>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -102,6 +179,9 @@ export function ROIBuilder({ entries, onChange }: ROIBuilderProps) {
                   </TooltipTrigger>
                   <TooltipContent side="left" className="max-w-xs">
                     <p className="text-xs">{CATEGORY_TOOLTIPS[category]}</p>
+                    {formulaHint && (
+                      <p className="text-xs text-primary mt-1">Dept formula: <code>{formulaHint}</code></p>
+                    )}
                   </TooltipContent>
                 </Tooltip>
                 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 import { getAssets, getROIFacts, getDepartmentROIMatrix, getTotalEnterpriseValue, getVersionSnapshots, getSecurityStats, getAssetCountByDepartment, getAuditLogs, type DbPromptAsset, type DbROIFact } from '@/lib/supabase-store';
 import { DEPARTMENTS, ROI_CATEGORIES, Department, ROICategory } from '@/lib/synphera-types';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -29,6 +30,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
   const [securityStats, setSecurityStats] = useState({ green: 0, amber: 0, red: 0, pending: 0 });
   const [deptCounts, setDeptCounts] = useState<Record<string, number>>({});
   const [auditCount, setAuditCount] = useState(0);
+  const [roiWeights, setRoiWeights] = useState<Record<string, Record<string, number>>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,6 +43,21 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
       setSecurityStats(await getSecurityStats(a));
       setDeptCounts(await getAssetCountByDepartment(a));
       setAuditCount(logs.length);
+
+      // Fetch ROI configs for weighted calculations
+      const { data: configs } = await supabase.from('roi_configs').select('*');
+      const { data: depts } = await supabase.from('departments').select('*');
+      if (configs && depts) {
+        const weights: Record<string, Record<string, number>> = {};
+        configs.forEach(cfg => {
+          const dept = depts.find(d => d.id === cfg.department_id);
+          const deptName = dept?.name || '__global__';
+          if (!weights[deptName]) weights[deptName] = {};
+          weights[deptName][cfg.category] = cfg.weight ?? 1;
+        });
+        setRoiWeights(weights);
+      }
+
       setLoading(false);
     })();
   }, [refreshKey]);
@@ -77,13 +94,18 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
   }, [assets]);
 
   const deptTotals = useMemo(() => {
-    return DEPARTMENTS.map(dept => ({
-      dept,
-      total: ROI_CATEGORIES.reduce((sum, cat) => sum + (roiMatrix[dept]?.[cat] || 0), 0),
-    })).sort((a, b) => b.total - a.total);
-  }, [roiMatrix]);
+    return DEPARTMENTS.map(dept => {
+      const weighted = ROI_CATEGORIES.reduce((sum, cat) => {
+        const raw = roiMatrix[dept]?.[cat] || 0;
+        const weight = roiWeights[dept]?.[cat] ?? roiWeights['__global__']?.[cat] ?? 1;
+        return sum + (raw * weight);
+      }, 0);
+      const unweighted = ROI_CATEGORIES.reduce((sum, cat) => sum + (roiMatrix[dept]?.[cat] || 0), 0);
+      return { dept, total: unweighted, weighted };
+    }).sort((a, b) => b.weighted - a.weighted);
+  }, [roiMatrix, roiWeights]);
 
-  const maxDeptTotal = Math.max(...deptTotals.map(d => d.total), 1);
+  const maxDeptTotal = Math.max(...deptTotals.map(d => d.weighted), 1);
   const lockedCount = assets.filter(a => a.is_locked).length;
   const forkedCount = assets.filter(a => a.parent_id).length;
 
@@ -273,13 +295,18 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
           <CardTitle className="flex items-center gap-2 text-base"><TrendingUp className="h-5 w-5 text-primary" />ROI by Department</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {deptTotals.filter(d => d.total > 0).map(({ dept, total }) => (
+          {deptTotals.filter(d => d.total > 0).map(({ dept, total, weighted }) => (
             <div key={dept} className="space-y-1">
               <div className="flex items-center justify-between text-sm">
                 <span className="font-medium text-xs">{dept}</span>
-                <span className="font-mono text-xs text-primary">${total.toLocaleString()}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-muted-foreground">${total.toLocaleString()}</span>
+                  {weighted !== total && (
+                    <span className="font-mono text-xs text-primary">(weighted: ${weighted.toLocaleString()})</span>
+                  )}
+                </div>
               </div>
-              <Progress value={(total / maxDeptTotal) * 100} className="h-1.5" />
+              <Progress value={(weighted / maxDeptTotal) * 100} className="h-1.5" />
             </div>
           ))}
           {deptTotals.every(d => d.total === 0) && (

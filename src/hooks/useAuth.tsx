@@ -17,7 +17,7 @@ interface AuthContextValue {
   profile: Profile | null;
   role: AppRole;
   loading: boolean;
-  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, displayName?: string, preferredRole?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
@@ -89,13 +89,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, displayName?: string) => {
+  const signUp = async (email: string, password: string, displayName?: string, preferredRole?: string) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: window.location.origin,
-        data: { display_name: displayName || email.split('@')[0] },
+        data: {
+          display_name: displayName || email.split('@')[0],
+          preferred_role: preferredRole || 'creator',
+        },
       },
     });
     return { error };
