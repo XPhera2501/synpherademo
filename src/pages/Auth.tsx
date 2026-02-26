@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import synpheraLogo from '@/assets/synphera-logo.jpg';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -86,9 +87,7 @@ export default function Auth() {
         {/* Branding */}
         <div className="text-center space-y-3">
           <div className="flex justify-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl synphera-brand-gradient synphera-glow">
-              <Shield className="h-7 w-7 text-primary-foreground" />
-            </div>
+            <img src={synpheraLogo} alt="SynPhera logo" className="h-14 w-14 rounded-2xl object-cover synphera-glow" />
           </div>
           <h1 className="font-heading text-3xl font-bold tracking-tight">
             Sign In to SynPhera<span className="synphera-text-gradient">™</span>

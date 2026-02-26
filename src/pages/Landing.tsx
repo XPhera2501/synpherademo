@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import synpheraLogo from '@/assets/synphera-logo.jpg';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -57,9 +58,7 @@ export default function Landing() {
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl synphera-brand-gradient">
-              <Shield className="h-5 w-5 text-primary-foreground" />
-            </div>
+            <img src={synpheraLogo} alt="SynPhera logo" className="h-10 w-10 rounded-xl object-cover" />
             <span className="text-xl font-heading font-bold tracking-tight">
               SynPhera<span className="synphera-text-gradient">™</span>
               <span className="text-xs font-sans font-normal text-muted-foreground ml-1.5">by X-Phera</span>

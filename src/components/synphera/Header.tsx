@@ -1,8 +1,9 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Database, Zap, LogOut, User } from 'lucide-react';
+import { Database, Zap, LogOut, User } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import synpheraLogo from '@/assets/synphera-logo.jpg';
 
 export function Header() {
   const { profile, role, signOut, user } = useAuth();
@@ -14,9 +15,7 @@ export function Header() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl synphera-brand-gradient synphera-glow">
-                <Shield className="h-6 w-6 text-primary-foreground" />
-              </div>
+              <img src={synpheraLogo} alt="SynPhera logo" className="h-12 w-12 rounded-xl object-cover synphera-glow" />
               <div className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-synphera-magenta text-[10px] font-bold text-primary-foreground">
                 13
               </div>
