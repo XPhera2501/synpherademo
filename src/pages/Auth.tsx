@@ -20,19 +20,16 @@ export default function Auth() {
   const [authTab, setAuthTab] = useState<string>('login');
   const [superMode, setSuperMode] = useState(false);
 
-  // Login form
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPw, setShowLoginPw] = useState(false);
 
-  // Signup form
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [signupName, setSignupName] = useState('');
   const [showSignupPw, setShowSignupPw] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
-  // Super admin MFA
   const [mfaCode, setMfaCode] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -44,7 +41,6 @@ export default function Auth() {
     setLoading(true);
 
     if (superMode) {
-      // Check whitelist first
       const { data: whitelisted } = await supabase
         .from('super_admin_whitelist')
         .select('id, mfa_enabled')
@@ -88,12 +84,12 @@ export default function Auth() {
         {/* Branding */}
         <div className="text-center space-y-3">
           <div className="flex justify-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/30">
-              <Shield className="h-7 w-7 text-primary" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl synphera-brand-gradient synphera-glow">
+              <Shield className="h-7 w-7 text-primary-foreground" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Sign In to Synphera<span className="text-primary">™</span>
+          <h1 className="font-heading text-3xl font-bold tracking-tight">
+            Sign In to SynPhera<span className="synphera-text-gradient">™</span>
           </h1>
           <p className="text-sm text-muted-foreground">
             Enterprise GenAI Governance Portal
@@ -131,7 +127,7 @@ export default function Auth() {
             <TabsContent value="login">
               <form onSubmit={handleLogin}>
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">
+                  <CardTitle className="font-heading text-lg">
                     {superMode ? 'Super Admin Access' : 'Welcome Back'}
                   </CardTitle>
                   <CardDescription>
@@ -191,7 +187,7 @@ export default function Auth() {
                     </div>
                   )}
 
-                  <Button type="submit" className="w-full gap-2" disabled={loading}>
+                  <Button type="submit" className="w-full gap-2 synphera-brand-gradient border-0 text-primary-foreground hover:opacity-90" disabled={loading}>
                     {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                     {superMode ? 'Access Super Admin' : 'Sign In'}
                   </Button>
@@ -213,7 +209,7 @@ export default function Auth() {
             <TabsContent value="signup">
               <form onSubmit={handleSignup}>
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">Create Account</CardTitle>
+                  <CardTitle className="font-heading text-lg">Create Account</CardTitle>
                   <CardDescription>Join your organization's prompt governance workspace</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -279,7 +275,7 @@ export default function Auth() {
                     </Label>
                   </div>
 
-                  <Button type="submit" className="w-full gap-2" disabled={loading || !agreedToTerms}>
+                  <Button type="submit" className="w-full gap-2 synphera-brand-gradient border-0 text-primary-foreground hover:opacity-90" disabled={loading || !agreedToTerms}>
                     {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                     Create Account
                   </Button>

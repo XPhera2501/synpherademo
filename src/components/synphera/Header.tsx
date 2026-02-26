@@ -9,21 +9,21 @@ export function Header() {
 
   return (
     <header className="relative overflow-hidden border-b border-border bg-card">
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5" />
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-synphera-magenta/5" />
       <div className="relative mx-auto max-w-7xl px-6 py-4 sm:py-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/30">
-                <Shield className="h-6 w-6 text-primary" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl synphera-brand-gradient synphera-glow">
+                <Shield className="h-6 w-6 text-primary-foreground" />
               </div>
-              <div className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+              <div className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-synphera-magenta text-[10px] font-bold text-primary-foreground">
                 13
               </div>
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                Synphera<span className="text-primary">™</span>
+              <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
+                SynPhera<span className="synphera-text-gradient">™</span>
               </h1>
               <p className="text-sm text-muted-foreground">
                 Enterprise GenAI Governance Portal
@@ -43,7 +43,6 @@ export function Header() {
               </div>
             </div>
 
-            {/* User info */}
             <div className="flex items-center gap-3 rounded-lg border border-border bg-background/50 px-3 py-2">
               <User className="h-4 w-4 text-muted-foreground" />
               <div className="hidden sm:block">

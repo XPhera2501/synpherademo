@@ -57,14 +57,12 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        navy: {
-          deep: "hsl(var(--navy-deep))",
-          medium: "hsl(var(--navy-medium))",
+        synphera: {
+          purple: "hsl(var(--synphera-purple))",
+          magenta: "hsl(var(--synphera-magenta))",
         },
-        teal: {
-          vibrant: "hsl(var(--teal-vibrant))",
-          glow: "hsl(var(--teal-glow))",
-        },
+        "deep-space": "hsl(var(--deep-space))",
+        "strategic-grey": "hsl(var(--strategic-grey))",
         status: {
           green: "hsl(var(--status-green))",
           amber: "hsl(var(--status-amber))",
@@ -77,7 +75,8 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["Poppins", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        sans: ["Open Sans", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        heading: ["Montserrat", "sans-serif"],
         mono: ["JetBrains Mono", "Fira Code", "monospace"],
       },
       keyframes: {
@@ -90,8 +89,8 @@ export default {
           to: { height: "0" },
         },
         "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 20px hsl(174 100% 44% / 0.3)" },
-          "50%": { boxShadow: "0 0 40px hsl(174 100% 44% / 0.5)" },
+          "0%, 100%": { boxShadow: "0 0 20px hsl(291 65% 42% / 0.3)" },
+          "50%": { boxShadow: "0 0 40px hsl(291 65% 42% / 0.5)" },
         },
         "scan-line": {
           "0%": { transform: "translateY(-100%)" },
