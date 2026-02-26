@@ -44,6 +44,54 @@ export type Database = {
         }
         Relationships: []
       }
+      departments: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      landing_content: {
+        Row: {
+          content: string
+          id: string
+          section: string
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          id?: string
+          section: string
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          id?: string
+          section?: string
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       lineage_entries: {
         Row: {
           action: string
@@ -219,6 +267,44 @@ export type Database = {
           },
         ]
       }
+      roi_configs: {
+        Row: {
+          category: string
+          created_at: string | null
+          department_id: string | null
+          formula: string
+          id: string
+          updated_at: string | null
+          weight: number | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          department_id?: string | null
+          formula: string
+          id?: string
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          department_id?: string | null
+          formula?: string
+          id?: string
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roi_configs_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: true
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roi_facts: {
         Row: {
           asset_id: string
@@ -250,6 +336,41 @@ export type Database = {
             columns: ["asset_id"]
             isOneToOne: false
             referencedRelation: "prompt_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      super_admin_whitelist: {
+        Row: {
+          authorized_by: string | null
+          created_at: string | null
+          email: string
+          id: string
+          mfa_enabled: boolean | null
+          revoked_at: string | null
+        }
+        Insert: {
+          authorized_by?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          mfa_enabled?: boolean | null
+          revoked_at?: string | null
+        }
+        Update: {
+          authorized_by?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          mfa_enabled?: boolean | null
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "super_admin_whitelist_authorized_by_fkey"
+            columns: ["authorized_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -334,7 +455,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "creator" | "reviewer" | "viewer"
+      app_role: "super_admin" | "admin" | "creator" | "reviewer" | "viewer"
       asset_status: "draft" | "in_review" | "approved" | "released"
       department:
         | "Operations"
@@ -472,7 +593,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "creator", "reviewer", "viewer"],
+      app_role: ["super_admin", "admin", "creator", "reviewer", "viewer"],
       asset_status: ["draft", "in_review", "approved", "released"],
       department: [
         "Operations",
