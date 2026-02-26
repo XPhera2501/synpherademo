@@ -13,7 +13,7 @@ import { VersionHistoryPanel } from './VersionHistoryPanel';
 import { CommentThread } from './CommentThread';
 import { useAuth } from '@/hooks/useAuth';
 import { 
-  getAssets, updateAsset, createAsset, addLineageEntry, addVersionSnapshot, addAuditLog, getProfiles,
+  getAssets, updateAsset, updateAssetWithVersioning, createAsset, addLineageEntry, addVersionSnapshot, addAuditLog, getProfiles,
   type DbPromptAsset, type AssetStatusEnum, type DepartmentEnum, type DbProfile
 } from '@/lib/supabase-store';
 import { DEPARTMENTS } from '@/lib/synphera-types';
@@ -98,18 +98,14 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
 
   const handleSubmitForReview = async (asset: DbPromptAsset, reviewerId: string) => {
     if (!user) return;
-    const updated = await updateAsset(asset.id, {
-      status: 'in_review' as AssetStatusEnum,
-      assigned_to: reviewerId,
-    });
+    const updated = await updateAssetWithVersioning(
+      asset.id,
+      { status: 'in_review' as AssetStatusEnum, assigned_to: reviewerId },
+      user.id,
+      `Submitted for review to ${reviewerId}`,
+      'submit_for_review',
+    );
     if (updated) {
-      await addAuditLog({
-        user_id: user.id,
-        action: 'submit_for_review',
-        target_type: 'prompt_asset',
-        target_id: asset.id,
-        details: { assigned_to: reviewerId },
-      });
       toast.success('Submitted for review!');
       onAssetUpdated();
       loadData();
@@ -122,39 +118,20 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
       return;
     }
     
-    const newVersion = parseFloat((asset.version + 0.1).toFixed(1));
-    const updated = await updateAsset(asset.id, {
-      content: editContent || asset.content,
-      status: 'released' as AssetStatusEnum,
-      assigned_to: null,
-      security_status: 'GREEN',
-      version: newVersion,
-      commit_message: commitMsg,
-    });
+    const updated = await updateAssetWithVersioning(
+      asset.id,
+      {
+        content: editContent || asset.content,
+        status: 'released' as AssetStatusEnum,
+        assigned_to: null,
+        security_status: 'GREEN',
+      },
+      user.id,
+      commitMsg,
+      'approve_release',
+    );
     
     if (updated) {
-      await addVersionSnapshot({
-        asset_id: asset.id,
-        version: newVersion,
-        content: updated.content,
-        title: updated.title,
-        commit_message: commitMsg,
-        user_id: user.id,
-      });
-      await addLineageEntry({
-        asset_id: asset.id,
-        parent_id: asset.parent_id,
-        action: 'released',
-        user_id: user.id,
-      });
-      await addAuditLog({
-        user_id: user.id,
-        action: 'approve_release',
-        target_type: 'prompt_asset',
-        target_id: asset.id,
-        details: { version: newVersion, commit: commitMsg },
-      });
-      
       setEditingAsset(null);
       setEditContent('');
       setCommitMsg('');
