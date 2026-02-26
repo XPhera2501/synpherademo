@@ -2,62 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Synphera Design System – Poppins, Teal Primary, Deep Navy */
 
 @layer base {
   :root {
-    --background: 210 33% 98%;
-    --foreground: 215 25% 15%;
+    --background: 220 18% 6%;
+    --foreground: 210 20% 92%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
+    --card: 220 16% 10%;
+    --card-foreground: 210 20% 92%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
+    --popover: 220 16% 10%;
+    --popover-foreground: 210 20% 92%;
 
-    --primary: 174 72% 40%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 176 65% 45%;
+    --primary-foreground: 220 18% 6%;
 
-    --secondary: 210 20% 94%;
-    --secondary-foreground: 215 25% 25%;
+    --secondary: 220 14% 16%;
+    --secondary-foreground: 210 20% 85%;
 
-    --muted: 210 20% 96%;
-    --muted-foreground: 215 15% 50%;
+    --muted: 220 14% 14%;
+    --muted-foreground: 215 12% 55%;
 
-    --accent: 174 72% 40%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 176 50% 22%;
+    --accent-foreground: 176 65% 75%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 20% 90%;
-    --input: 210 20% 92%;
-    --ring: 174 72% 40%;
+    --border: 220 14% 18%;
+    --input: 220 14% 16%;
+    --ring: 176 65% 45%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 215 25% 15%;
-    --sidebar-primary: 174 72% 40%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 20% 96%;
-    --sidebar-accent-foreground: 215 25% 25%;
-    --sidebar-border: 210 20% 90%;
-    --sidebar-ring: 174 72% 40%;
-    
+    --sidebar-background: 220 16% 8%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-primary: 176 65% 45%;
+    --sidebar-primary-foreground: 220 18% 6%;
+    --sidebar-accent: 220 14% 14%;
+    --sidebar-accent-foreground: 210 20% 85%;
+    --sidebar-border: 220 14% 18%;
+    --sidebar-ring: 176 65% 45%;
+
     /* Custom Synphera tokens */
-    --navy-deep: 215 25% 15%;
-    --navy-medium: 210 20% 94%;
-    --teal-vibrant: 174 72% 40%;
-    --teal-glow: 174 80% 48%;
-    --status-green: 152 60% 40%;
-    --status-amber: 38 85% 50%;
-    --status-red: 0 72% 51%;
-    --status-green-bg: 152 60% 40% / 0.08;
-    --status-amber-bg: 38 85% 50% / 0.08;
-    --status-red-bg: 0 72% 51% / 0.08;
+    --navy-deep: 220 18% 6%;
+    --navy-medium: 220 16% 10%;
+    --teal-vibrant: 176 65% 45%;
+    --teal-glow: 176 80% 55%;
+    --status-green: 152 60% 45%;
+    --status-amber: 38 85% 55%;
+    --status-red: 0 72% 55%;
+    --status-green-bg: 152 60% 45% / 0.12;
+    --status-amber-bg: 38 85% 55% / 0.12;
+    --status-red-bg: 0 72% 55% / 0.12;
+
+    --gradient-hero: linear-gradient(135deg, hsl(220 18% 6%) 0%, hsl(220 16% 12%) 50%, hsl(176 65% 45% / 0.08) 100%);
   }
 }
 
@@ -68,60 +68,68 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
   }
 }
 
 @layer components {
   .synphera-gradient {
-    background: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(210 33% 97%) 100%);
+    background: var(--gradient-hero);
   }
-  
+
   .synphera-glow {
-    box-shadow: 0 4px 24px hsl(174 72% 40% / 0.08), 0 1px 4px hsl(215 25% 15% / 0.04);
+    box-shadow: 0 4px 24px hsl(176 65% 45% / 0.1), 0 1px 4px hsl(220 18% 6% / 0.4);
   }
-  
+
   .synphera-border-glow {
-    border: 1px solid hsl(174 72% 40% / 0.15);
+    border: 1px solid hsl(176 65% 45% / 0.2);
   }
-  
+
   .status-badge {
     @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider;
   }
-  
+
   .status-green {
     @apply status-badge;
     background: hsl(var(--status-green-bg));
     color: hsl(var(--status-green));
     border: 1px solid hsl(var(--status-green) / 0.3);
   }
-  
+
   .status-amber {
     @apply status-badge;
     background: hsl(var(--status-amber-bg));
     color: hsl(var(--status-amber));
     border: 1px solid hsl(var(--status-amber) / 0.3);
   }
-  
+
   .status-red {
     @apply status-badge;
     background: hsl(var(--status-red-bg));
     color: hsl(var(--status-red));
     border: 1px solid hsl(var(--status-red) / 0.3);
   }
-  
+
   .log-box {
     @apply font-mono text-sm p-4 rounded-lg border overflow-auto max-h-64;
-    background: hsl(210 33% 98%);
+    background: hsl(220 16% 8%);
     border-color: hsl(var(--border));
   }
-  
+
   .metric-card {
     @apply p-6 rounded-xl synphera-border-glow;
-    background: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(210 25% 98%) 100%);
+    background: linear-gradient(145deg, hsl(220 16% 10%) 0%, hsl(220 16% 12%) 100%);
   }
-  
+
   .roi-cell {
     @apply text-right font-mono tabular-nums;
+  }
+
+  .landing-section {
+    @apply py-16 sm:py-24;
   }
 }
