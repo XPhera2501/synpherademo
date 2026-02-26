@@ -75,7 +75,7 @@ export default function Auth() {
       return;
     }
     setLoading(true);
-    const { error } = await signUp(signupEmail, signupPassword, signupName);
+    const { error } = await signUp(signupEmail, signupPassword, signupName, signupRole);
     setLoading(false);
     if (error) toast.error(error.message);
     else toast.success('Account created! You can now sign in.');

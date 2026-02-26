@@ -302,7 +302,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
         </div>
         
         <div className="rounded-lg border border-border bg-card p-4">
-          <ROIBuilder entries={roiEntries} onChange={setRoiEntries} />
+          <ROIBuilder entries={roiEntries} onChange={setRoiEntries} department={department} />
         </div>
       </div>
       

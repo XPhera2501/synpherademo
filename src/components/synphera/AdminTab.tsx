@@ -54,9 +54,12 @@ export function AdminTab() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [roiConfigs, setROIConfigs] = useState<ROIConfig[]>([]);
+  const [landingContent, setLandingContent] = useState<{ id?: string; section: string; content: string; title?: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [auditSearch, setAuditSearch] = useState('');
   const [userSearch, setUserSearch] = useState('');
+  const [editingContent, setEditingContent] = useState<{ section: string; content: string; id?: string } | null>(null);
+  const [contentSaving, setContentSaving] = useState(false);
 
   // Department dialog
   const [deptDialogOpen, setDeptDialogOpen] = useState(false);
@@ -76,12 +79,13 @@ export function AdminTab() {
 
   const loadData = async () => {
     setLoading(true);
-    const [profiles, { data: roles }, logs, { data: deptData }, { data: roiData }] = await Promise.all([
+    const [profiles, { data: roles }, logs, { data: deptData }, { data: roiData }, { data: contentData }] = await Promise.all([
       getProfiles(),
       supabase.from('user_roles').select('*'),
       getAuditLogs(500),
       supabase.from('departments').select('*').order('name'),
       supabase.from('roi_configs').select('*').order('category'),
+      supabase.from('landing_content').select('*'),
     ]);
 
     const userList: UserWithRole[] = profiles.map(p => {
@@ -98,6 +102,7 @@ export function AdminTab() {
     setAuditLogs(logs);
     setDepartments(deptData || []);
     setROIConfigs(roiData || []);
+    setLandingContent(contentData || []);
     setLoading(false);
   };
 
@@ -235,6 +240,67 @@ export function AdminTab() {
     URL.revokeObjectURL(url);
   };
 
+  // ============ Landing Content Handlers ============
+  const saveContent = async () => {
+    if (!editingContent) return;
+    setContentSaving(true);
+    if (editingContent.id) {
+      await supabase.from('landing_content').update({ content: editingContent.content }).eq('id', editingContent.id);
+    } else {
+      await supabase.from('landing_content').insert({ section: editingContent.section, content: editingContent.content });
+    }
+    if (user) await addAuditLog({ user_id: user.id, action: 'content_update', target_type: 'landing_content', details: { section: editingContent.section } });
+    toast.success('Content updated');
+    setEditingContent(null);
+    setContentSaving(false);
+    loadData();
+  };
+
+  // ============ CSV User Import ============
+  const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const text = ev.target?.result as string;
+      const lines = text.split('\n').filter(l => l.trim());
+      if (lines.length < 2) { toast.error('CSV must have a header row and at least one data row'); return; }
+      const header = lines[0].toLowerCase();
+      if (!header.includes('email')) { toast.error('CSV must contain an "email" column'); return; }
+      const cols = lines[0].split(',').map(c => c.trim().toLowerCase().replace(/"/g, ''));
+      const emailIdx = cols.indexOf('email');
+      const nameIdx = cols.indexOf('name') !== -1 ? cols.indexOf('name') : cols.indexOf('display_name');
+      const roleIdx = cols.indexOf('role');
+      const deptIdx = cols.indexOf('department');
+
+      let imported = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const vals = lines[i].split(',').map(c => c.trim().replace(/"/g, ''));
+        const email = vals[emailIdx];
+        if (!email || !email.includes('@')) continue;
+        // Log the import attempt for admin review
+        if (user) {
+          await addAuditLog({
+            user_id: user.id,
+            action: 'csv_user_import',
+            target_type: 'user',
+            details: {
+              email,
+              name: nameIdx >= 0 ? vals[nameIdx] : undefined,
+              role: roleIdx >= 0 ? vals[roleIdx] : undefined,
+              department: deptIdx >= 0 ? vals[deptIdx] : undefined,
+            },
+          });
+        }
+        imported++;
+      }
+      toast.success(`Processed ${imported} user records. Users will appear after they sign up.`);
+      e.target.value = '';
+      loadData();
+    };
+    reader.readAsText(file);
+  };
+
   const filteredUsers = userSearch
     ? users.filter(u => u.display_name?.toLowerCase().includes(userSearch.toLowerCase()) || u.department?.toLowerCase().includes(userSearch.toLowerCase()))
     : users;
@@ -253,7 +319,7 @@ export function AdminTab() {
     <div className="space-y-6">
       {/* Admin Sub-Tabs */}
       <Tabs defaultValue="users" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 bg-card border border-border h-12">
+        <TabsList className="grid w-full grid-cols-5 bg-card border border-border h-12">
           <TabsTrigger value="users" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">User Roles</span>
@@ -268,6 +334,11 @@ export function AdminTab() {
             <TrendingUp className="h-4 w-4" />
             <span className="hidden sm:inline">ROI Settings</span>
             <span className="sm:hidden">ROI</span>
+          </TabsTrigger>
+          <TabsTrigger value="content" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <FileText className="h-4 w-4" />
+            <span className="hidden sm:inline">Landing Content</span>
+            <span className="sm:hidden">Content</span>
           </TabsTrigger>
           <TabsTrigger value="audit" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Shield className="h-4 w-4" />
@@ -285,9 +356,17 @@ export function AdminTab() {
                   <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary" />User Management</CardTitle>
                   <CardDescription>{users.length} registered users</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleExportAccessReport}>
-                  <Download className="h-3.5 w-3.5" />Access Report
-                </Button>
+                <div className="flex gap-2">
+                  <label className="cursor-pointer">
+                    <input type="file" accept=".csv" className="hidden" onChange={handleCSVImport} />
+                    <Button variant="outline" size="sm" className="gap-1.5 text-xs" asChild>
+                      <span><Plus className="h-3.5 w-3.5" />Import CSV</span>
+                    </Button>
+                  </label>
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleExportAccessReport}>
+                    <Download className="h-3.5 w-3.5" />Access Report
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -571,6 +650,53 @@ export function AdminTab() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+        </TabsContent>
+
+        {/* ====== LANDING CONTENT TAB ====== */}
+        <TabsContent value="content" className="animate-fade-in-up">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />Landing Page Content</CardTitle>
+              <CardDescription>Edit the T&C and Privacy content displayed on the public landing page</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {['tandc', 'privacy'].map(section => {
+                const existing = landingContent.find(c => c.section === section);
+                const isEditing = editingContent?.section === section;
+                return (
+                  <div key={section} className="rounded-lg border border-border p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-sm capitalize">{section === 'tandc' ? 'Terms & Conditions' : 'Privacy Statement'}</h4>
+                      {!isEditing && (
+                        <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setEditingContent({ section, content: existing?.content || '', id: existing?.id })}>
+                          <Pencil className="h-3.5 w-3.5" />{existing ? 'Edit' : 'Create'}
+                        </Button>
+                      )}
+                    </div>
+                    {isEditing ? (
+                      <div className="space-y-3">
+                        <Textarea
+                          value={editingContent.content}
+                          onChange={e => setEditingContent({ ...editingContent, content: e.target.value })}
+                          rows={10}
+                          placeholder="Enter content…"
+                          className="font-mono text-sm"
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <Button variant="outline" size="sm" onClick={() => setEditingContent(null)}>Cancel</Button>
+                          <Button size="sm" onClick={saveContent} disabled={contentSaving}>{contentSaving ? 'Saving…' : 'Save'}</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        {existing ? `${existing.content.substring(0, 150)}…` : 'No content set. Using default placeholders.'}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ====== AUDIT LOG TAB ====== */}
