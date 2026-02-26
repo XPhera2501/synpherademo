@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Shield, LogIn, UserPlus, Loader2, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -28,6 +29,7 @@ export default function Auth() {
   const [signupPassword, setSignupPassword] = useState('');
   const [signupName, setSignupName] = useState('');
   const [showSignupPw, setShowSignupPw] = useState(false);
+  const [signupRole, setSignupRole] = useState('creator');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const [mfaCode, setMfaCode] = useState('');
@@ -196,7 +198,17 @@ export default function Auth() {
                     <button
                       type="button"
                       className="text-primary hover:underline"
-                      onClick={() => toast.info('Password reset is coming soon.')}
+                      onClick={async () => {
+                        if (!loginEmail.trim()) {
+                          toast.error('Enter your email first, then click Forgot Password');
+                          return;
+                        }
+                        const { error } = await supabase.auth.resetPasswordForEmail(loginEmail.trim(), {
+                          redirectTo: `${window.location.origin}/reset-password`,
+                        });
+                        if (error) toast.error(error.message);
+                        else toast.success('Check your email for a password reset link');
+                      }}
                     >
                       Forgot Password?
                     </button>
@@ -255,6 +267,20 @@ export default function Auth() {
                         {showSignupPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-role">Preferred Role</Label>
+                    <Select value={signupRole} onValueChange={setSignupRole}>
+                      <SelectTrigger id="signup-role" className="h-9 text-sm">
+                        <SelectValue placeholder="Select a role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="viewer">Viewer</SelectItem>
+                        <SelectItem value="reviewer">Reviewer</SelectItem>
+                        <SelectItem value="creator">Creator</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-muted-foreground">Role assignment is subject to admin approval.</p>
                   </div>
 
                   <div className="flex items-start gap-2">

@@ -24,6 +24,7 @@ import {
   Zap,
   CheckCircle,
   Globe,
+  Download,
 } from 'lucide-react';
 
 export default function Landing() {
@@ -225,7 +226,8 @@ export default function Landing() {
         {/* Terms & Conditions */}
         <section id="terms" className="landing-section">
           <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <h2 className="font-heading text-3xl font-bold tracking-tight mb-8">Terms & Conditions</h2>
+            <h2 className="font-heading text-3xl font-bold tracking-tight mb-2">Terms & Conditions</h2>
+            <p className="text-sm text-muted-foreground mb-8">Last updated: February 2026</p>
             <Card className="bg-card border-border">
               <CardContent className="p-8 prose prose-invert prose-sm max-w-none">
                 {termsContent ? (
@@ -243,13 +245,27 @@ export default function Landing() {
                 )}
               </CardContent>
             </Card>
+            <div className="mt-4 flex justify-end">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => {
+                const el = document.getElementById('terms');
+                if (!el) return;
+                const text = el.innerText;
+                const blob = new Blob([text], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = 'SynPhera-Terms-and-Conditions.txt'; a.click();
+                URL.revokeObjectURL(url);
+              }}>
+                <Download className="h-3.5 w-3.5" /> Download T&C
+              </Button>
+            </div>
           </div>
         </section>
 
         {/* Privacy Statement */}
         <section id="privacy" className="landing-section bg-card/30">
           <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <h2 className="font-heading text-3xl font-bold tracking-tight mb-8">Privacy Statement</h2>
+            <h2 className="font-heading text-3xl font-bold tracking-tight mb-2">Privacy Statement</h2>
+            <p className="text-sm text-muted-foreground mb-8">Last updated: February 2026</p>
             <Card className="bg-card border-border">
               <CardContent className="p-8 prose prose-invert prose-sm max-w-none">
                 {privacyContent ? (
@@ -266,6 +282,19 @@ export default function Landing() {
                 )}
               </CardContent>
             </Card>
+            <div className="mt-4 flex justify-end">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => {
+                const el = document.getElementById('privacy');
+                if (!el) return;
+                const text = el.innerText;
+                const blob = new Blob([text], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = 'SynPhera-Privacy-Statement.txt'; a.click();
+                URL.revokeObjectURL(url);
+              }}>
+                <Download className="h-3.5 w-3.5" /> Download Privacy Statement
+              </Button>
+            </div>
           </div>
         </section>
       </main>
