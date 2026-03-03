@@ -2,6 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Zap, LogOut, User } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ThemeToggle } from './ThemeToggle';
 import synpheraLogo from '@/assets/synphera-logo.jpg';
 
 export function Header() {
@@ -34,6 +35,8 @@ export function Header() {
               <Zap className="h-4 w-4 text-primary" />
               <span>ISO 27001 Compliant</span>
             </div>
+
+            <ThemeToggle />
 
             <div className="flex items-center gap-3 rounded-lg border border-border bg-background/50 px-3 py-2">
               <User className="h-4 w-4 text-muted-foreground" />
