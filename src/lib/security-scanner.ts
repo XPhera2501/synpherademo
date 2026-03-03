@@ -4,22 +4,11 @@ import { SecurityFinding, ScanResult, SecurityStatus } from './synphera-types';
 
 // Pattern definitions for sensitive data detection
 const PATTERNS = {
-  // Email patterns - comprehensive
   email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/gi,
-  
-  // Phone patterns - international formats
   phone: /(\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
-  
-  // IBAN pattern - European bank accounts
   iban: /\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}([A-Z0-9]?){0,16}\b/gi,
-  
-  // Passport patterns - various countries
   passport: /\b[A-Z]{1,2}\d{6,9}\b/gi,
-  
-  // SSN pattern - US Social Security
   ssn: /\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b/g,
-  
-  // Credit card patterns - major networks
   credit_card: /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b/g,
 };
 
@@ -90,7 +79,6 @@ function findKeywordMatches(
   keywords.forEach(keyword => {
     const lowerKeyword = keyword.toLowerCase();
     if (lowerContent.includes(lowerKeyword)) {
-      // Find the line number
       const lineIndex = lines.findIndex(line => 
         line.toLowerCase().includes(lowerKeyword)
       );
@@ -124,7 +112,8 @@ export function runSecurityScan(content: string, title: string): ScanResult {
   // Keyword-based detection
   allFindings.push(...findKeywordMatches(fullContent, HEALTH_KEYWORDS, 'health', 'MEDIUM'));
   allFindings.push(...findKeywordMatches(fullContent, CRIMINAL_KEYWORDS, 'criminal', 'HIGH'));
-  allFindings.push(...findKeywordMatches(fullContent, PROPRIETARY_MARKERS, 'proprietary', 'HIGH'));
+  // Proprietary markers downgraded to MEDIUM (remediable, not a hard block)
+  allFindings.push(...findKeywordMatches(fullContent, PROPRIETARY_MARKERS, 'proprietary', 'MEDIUM'));
   
   // Deduplicate findings by hash
   const uniqueFindings = allFindings.filter((finding, index, self) =>
@@ -136,10 +125,11 @@ export function runSecurityScan(content: string, title: string): ScanResult {
   
   const hasHighSeverity = uniqueFindings.some(f => f.severity === 'HIGH');
   const hasMediumSeverity = uniqueFindings.some(f => f.severity === 'MEDIUM');
-  const hasProprietary = uniqueFindings.some(f => f.type === 'proprietary');
   const hasCriminal = uniqueFindings.some(f => f.type === 'criminal');
   
-  if (hasHighSeverity || hasProprietary || hasCriminal) {
+  // Only PII (HIGH) and criminal data cause RED block
+  // Proprietary markers are now AMBER (remediable with justification)
+  if (hasHighSeverity || hasCriminal) {
     status = 'RED';
   } else if (hasMediumSeverity) {
     status = 'AMBER';
@@ -163,7 +153,7 @@ export function getSeverityLabel(type: SecurityFinding['type']): string {
     passport: '🛂 Passport Number',
     health: '🏥 Health Information',
     criminal: '⚖️ Criminal Record Data',
-    proprietary: '🔒 Proprietary Marker',
+    proprietary: '🔒 Proprietary Marker (remediable)',
     ssn: '🆔 Social Security Number',
     credit_card: '💳 Credit Card Number'
   };
