@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,7 +18,7 @@ import { PromptEditor } from './PromptEditor';
 import { TemplateLibrary } from './TemplateLibrary';
 import { AssignForReviewDialog } from './AssignForReviewDialog';
 import { useAuth } from '@/hooks/useAuth';
-import { Shield, Save, AlertTriangle, MessageSquare, Lock, Tag, X, Info, CheckCircle, XCircle, Lightbulb, FolderOpen, Users, Ban } from 'lucide-react';
+import { Shield, Save, AlertTriangle, MessageSquare, Lock, Tag, X, Info, CheckCircle, XCircle, FolderOpen, Users, Ban, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ROIEntry {
@@ -51,7 +51,7 @@ function detectPII(content: string): boolean {
 }
 
 export function CreationTab({ onAssetCreated }: CreationTabProps) {
-  const { user, canEdit, role } = useAuth();
+  const { user, canEdit, role, profile } = useAuth();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [department, setDepartment] = useState<DepartmentEnum>('Operations');
@@ -66,6 +66,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [isValidatingClear, setIsValidatingClear] = useState(false);
 
   // Phase 1: Compliance checkboxes
   const [complianceEU, setComplianceEU] = useState(false);
@@ -76,6 +77,13 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
 
   // Phase 3: Assign for Review dialog
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+
+  // Auto-default department to logged-in user's department
+  useEffect(() => {
+    if (profile?.department) {
+      setDepartment(profile.department as DepartmentEnum);
+    }
+  }, [profile?.department]);
   
   const canSave = scanResult && (scanResult.status === 'GREEN' || (scanResult.status === 'AMBER' && justification.trim().length > 10));
   const isBlocked = scanResult?.status === 'RED';
@@ -164,6 +172,25 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   };
 
   const complianceAllClean = complianceValidated && complianceResults.length > 0 && complianceResults.every(r => r.status === 'clean');
+
+  // Request CLEAR Validation
+  const handleRequestClearValidation = async () => {
+    if (!content.trim() || !title.trim()) {
+      toast.error('Enter prompt title and content before requesting validation.');
+      return;
+    }
+    setIsValidatingClear(true);
+    // Simulate async validation
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    const result = validatePromptBestPractices(content, title);
+    setValidation(result);
+    setIsValidatingClear(false);
+    if (result.score >= 70) {
+      toast.success(`CLEAR Validation passed — Score: ${result.score}/100`);
+    } else {
+      toast.warning(`CLEAR Validation: ${result.score}/100 — review suggestions below.`);
+    }
+  };
 
   const handleScan = async () => {
     if (!title.trim() || !content.trim()) {
@@ -281,10 +308,10 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
 
   // Phase 2: Profile summary auto-refresh with benefit values
   const profileSummary = useMemo(() => {
-    const benefitSummary = roiEntries.filter(e => e.value > 0).map(e => `${e.category}: $${e.value.toLocaleString()}`).join(', ');
+    const benefitSummary = roiEntries.filter(e => e.value > 0).map(e => `${e.category}: ${e.value.toLocaleString()}`).join(', ');
     return [
       { label: 'Type', value: category ? `Structured Enterprise ${category} Prompt` : 'Not specified' },
-      { label: 'Stability', value: validation ? (validation.score >= 70 ? 'High' : validation.score >= 40 ? 'Medium' : 'Low') : 'Pending scan' },
+      { label: 'Stability', value: validation ? (validation.score >= 70 ? 'High' : validation.score >= 40 ? 'Medium' : 'Low') : 'Pending validation' },
       { label: 'Determinism', value: content.length > 100 ? 'Very High Post-Implementation' : 'Pending' },
       { label: 'LLM Dependency', value: 'Limited to presentation layer' },
       { label: 'Audit Readiness', value: scanResult ? (scanResult.status === 'GREEN' ? 'Strong (logging enabled)' : 'Requires remediation') : 'Pending scan' },
@@ -318,7 +345,12 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
             <CardTitle className="text-lg">Prompt Content</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <PromptEditor value={content} onChange={handleContentChange} label="Content" />
+            <PromptEditor
+              value={content}
+              onChange={handleContentChange}
+              label="Content"
+              findings={scanResult?.findings}
+            />
             
             <Button
               onClick={handleScan}
@@ -339,14 +371,31 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
                   onChange={(e) => setTitle(e.target.value)}
                   className="bg-card"
                 />
-                <TemplateLibrary onSelect={handleTemplateSelect} />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <TemplateLibrary onSelect={handleTemplateSelect} />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">Select a pre-built prompt framework to scaffold your content with best-practice structure and variables.</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </div>
 
             {/* Department + Category row */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Department</Label>
+                <Label className="flex items-center gap-1.5">
+                  Department
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-xs">Defaults to your profile department. Change if this prompt serves a different team.</p></TooltipContent>
+                  </Tooltip>
+                </Label>
                 <Select value={department} onValueChange={(v) => setDepartment(v as DepartmentEnum)}>
                   <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -359,7 +408,13 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
                   <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
-                  Category
+                  Category Classification
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-xs">Classify this prompt by its primary function to improve catalogue searchability.</p></TooltipContent>
+                  </Tooltip>
                 </Label>
                 <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger className="bg-card"><SelectValue placeholder="Select category" /></SelectTrigger>
@@ -377,6 +432,12 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
               <Label className="flex items-center gap-1.5">
                 <Tag className="h-3.5 w-3.5 text-muted-foreground" />
                 Tags
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent><p className="text-xs">Add searchable tags (e.g., "sentiment", "q1-2026") to improve discoverability in the catalogue.</p></TooltipContent>
+                </Tooltip>
               </Label>
               <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 rounded-lg border border-border bg-card">
                 {tags.map(tag => (
@@ -402,6 +463,12 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
               <Label htmlFor="commit" className="flex items-center gap-2">
                 <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
                 Commit Message <span className="text-destructive">*</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent><p className="text-xs">Describe what changed in this version (e.g., "Added output format constraints"). Used for audit trail and version history.</p></TooltipContent>
+                </Tooltip>
               </Label>
               <Input
                 id="commit"
@@ -414,10 +481,13 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
           </CardContent>
         </Card>
 
-        {/* Top-Right: Benefits (ROI) */}
+        {/* Top-Right: Benefits */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">Benefits</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Select benefit categories relevant to your department. Values should match the unit shown for each category.
+            </p>
           </CardHeader>
           <CardContent>
             <ROIBuilder entries={roiEntries} onChange={setRoiEntries} department={department} />
@@ -498,36 +568,21 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
               </div>
             )}
 
-            {/* CLEAR Framework Guidance */}
-            <Card className="border-dashed border-primary/20 bg-primary/5">
-              <CardContent className="py-3 px-4">
-                <div className="flex items-start gap-2">
-                  <Lightbulb className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                  <div className="text-xs text-muted-foreground space-y-1">
-                    <p className="font-medium text-foreground">CLEAR Framework</p>
-                    <div className="grid grid-cols-5 gap-1">
-                      {[
-                        { letter: 'C', word: 'Concise', tip: 'Remove filler words' },
-                        { letter: 'L', word: 'Logical', tip: 'Structured flow' },
-                        { letter: 'E', word: 'Explicit', tip: 'No ambiguity' },
-                        { letter: 'A', word: 'Adaptive', tip: 'Handles edge cases' },
-                        { letter: 'R', word: 'Reflective', tip: 'Self-checks output' },
-                      ].map(({ letter, word, tip }) => (
-                        <Tooltip key={letter}>
-                          <TooltipTrigger asChild>
-                            <div className="text-center cursor-help">
-                              <span className="font-bold text-primary">{letter}</span>
-                              <p className="text-[10px]">{word}</p>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent><p className="text-xs">{tip}</p></TooltipContent>
-                        </Tooltip>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {/* CLEAR Framework — Request Validation Button */}
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                onClick={handleRequestClearValidation}
+                disabled={isValidatingClear || !content.trim() || !title.trim()}
+                className="gap-2 w-full"
+              >
+                <ClipboardCheck className="h-4 w-4" />
+                {isValidatingClear ? 'Validating CLEAR Framework...' : 'Request CLEAR Validation'}
+              </Button>
+              <p className="text-[10px] text-muted-foreground text-center">
+                Checks alignment with the CLEAR framework: <strong>C</strong>oncise · <strong>L</strong>ogical · <strong>E</strong>xplicit · <strong>A</strong>daptive · <strong>R</strong>eflective
+              </p>
+            </div>
 
             <ScanResultPanel result={scanResult} isScanning={isScanning} />
 
@@ -547,14 +602,14 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
               </div>
             )}
 
-            {/* Prompt Validation */}
+            {/* Prompt Validation Results (from CLEAR request) */}
             {validation && (
               <Card className={`border ${validation.score >= 70 ? 'border-status-green/30 bg-status-green/5' : validation.score >= 40 ? 'border-status-amber/30 bg-status-amber/5' : 'border-status-red/30 bg-status-red/5'}`}>
                 <CardContent className="py-3 px-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium flex items-center gap-1.5">
                       {validation.score >= 70 ? <CheckCircle className="h-3.5 w-3.5 text-status-green" /> : <Info className="h-3.5 w-3.5 text-status-amber" />}
-                      Validation Outcome — Score: {validation.score}/100
+                      CLEAR Validation — Score: {validation.score}/100
                     </span>
                     <Badge variant="outline" className="text-[10px]">{validation.checks.filter(c => c.passed).length}/{validation.checks.length} passed</Badge>
                   </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Header } from '@/components/synphera/Header';
 import { CreationTab } from '@/components/synphera/CreationTab';
@@ -7,7 +7,7 @@ import { AnalyticsTab } from '@/components/synphera/AnalyticsTab';
 import { HelpTab } from '@/components/synphera/HelpTab';
 import { AdminTab } from '@/components/synphera/AdminTab';
 import { useAuth } from '@/hooks/useAuth';
-import { FileText, Users, BarChart3, HelpCircle, Settings } from 'lucide-react';
+import { FileText, Users, BarChart3, HelpCircle, Settings, ShieldCheck } from 'lucide-react';
 
 export default function Index() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -16,10 +16,10 @@ export default function Index() {
   const handleRefresh = () => setRefreshKey(prev => prev + 1);
   
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header />
       
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-6 flex-1 w-full">
         <Tabs defaultValue="creation" className="space-y-4 sm:space-y-6">
           <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'} bg-card border border-border h-12 sm:h-14`}>
             <TabsTrigger 
@@ -84,6 +84,17 @@ export default function Index() {
           )}
         </Tabs>
       </div>
+
+      {/* Footer */}
+      <footer className="border-t border-border bg-card/50 py-3">
+        <div className="mx-auto max-w-7xl px-6 flex items-center justify-between text-xs text-muted-foreground">
+          <span>© {new Date().getFullYear()} SynPhera™ — Enterprise GenAI Governance</span>
+          <div className="flex items-center gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5 text-status-green" />
+            <span>ISO 27001 Certified · All prompt data encrypted at rest & in transit</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

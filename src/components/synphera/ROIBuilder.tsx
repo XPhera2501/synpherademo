@@ -43,6 +43,15 @@ const CATEGORY_ICONS: Record<ROICategory, string> = {
   'New Value': '✨',
 };
 
+// Unit configuration per category
+const CATEGORY_UNITS: Record<ROICategory, { label: string; prefix: string; suffix: string; placeholder: string }> = {
+  'Time Savings': { label: 'Hours saved', prefix: '', suffix: 'hrs', placeholder: 'e.g., 40' },
+  'Risk Mitigation': { label: 'Value ($)', prefix: '$', suffix: '', placeholder: 'e.g., 5000' },
+  'Efficiency': { label: 'Percentage gain', prefix: '', suffix: '%', placeholder: 'e.g., 20' },
+  'Cost Savings': { label: 'Amount ($)', prefix: '$', suffix: '', placeholder: 'e.g., 12000' },
+  'New Value': { label: 'Revenue ($)', prefix: '$', suffix: '', placeholder: 'e.g., 25000' },
+};
+
 export function ROIBuilder({ entries, onChange, department }: ROIBuilderProps) {
   const [selectedCategories, setSelectedCategories] = useState<ROICategory[]>(
     entries.map(e => e.category)
@@ -50,16 +59,13 @@ export function ROIBuilder({ entries, onChange, department }: ROIBuilderProps) {
   const [deptConfigs, setDeptConfigs] = useState<ROIConfig[]>([]);
   const [preferredCategories, setPreferredCategories] = useState<string[]>([]);
 
-  // Fetch department ROI configs and pre-populate preferred categories
   useEffect(() => {
     const fetchConfigs = async () => {
       const { data } = await supabase.from('roi_configs').select('*');
       if (!data) return;
       setDeptConfigs(data);
 
-      // Find configs matching the user's department (or global configs with null department_id)
       if (department) {
-        // Get department ID from departments table
         const { data: deptData } = await supabase.from('departments').select('id').eq('name', department).maybeSingle();
         const deptId = deptData?.id;
 
@@ -67,12 +73,10 @@ export function ROIBuilder({ entries, onChange, department }: ROIBuilderProps) {
           c.department_id === deptId || c.department_id === null
         );
 
-        // Sort by weight (highest first), then get preferred categories
         const sorted = matching.sort((a, b) => (b.weight ?? 1) - (a.weight ?? 1));
         const preferred = sorted.map(c => c.category);
         setPreferredCategories([...new Set(preferred)]);
 
-        // Auto-select top preferred categories if no entries yet
         if (entries.length === 0 && preferred.length > 0) {
           const topCategories = preferred.slice(0, 2) as ROICategory[];
           const validCategories = topCategories.filter(c => ROI_CATEGORIES.includes(c));
@@ -109,7 +113,6 @@ export function ROIBuilder({ entries, onChange, department }: ROIBuilderProps) {
   
   const totalROI = entries.reduce((sum, e) => sum + e.value, 0);
 
-  // Sort categories: preferred first
   const sortedCategories = [...ROI_CATEGORIES].sort((a, b) => {
     const aIdx = preferredCategories.indexOf(a);
     const bIdx = preferredCategories.indexOf(b);
@@ -122,7 +125,7 @@ export function ROIBuilder({ entries, onChange, department }: ROIBuilderProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">ROI Value Builder</Label>
+        <Label className="text-sm font-medium">Benefit Value Builder</Label>
         <div className="flex items-center gap-2 text-sm">
           <DollarSign className="h-4 w-4 text-primary" />
           <span className="font-mono font-semibold text-primary">
@@ -135,7 +138,7 @@ export function ROIBuilder({ entries, onChange, department }: ROIBuilderProps) {
       {preferredCategories.length > 0 && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Sparkles className="h-3.5 w-3.5 text-primary" />
-          <span>Pre-selected based on {department} department config</span>
+          <span>Categories pre-selected based on <strong>{department}</strong> department priorities</span>
         </div>
       )}
       
@@ -145,6 +148,7 @@ export function ROIBuilder({ entries, onChange, department }: ROIBuilderProps) {
           const entry = entries.find(e => e.category === category);
           const isPreferred = preferredCategories.includes(category);
           const formulaHint = getFormulaHint(category);
+          const unitConfig = CATEGORY_UNITS[category];
           
           return (
             <div 
@@ -187,17 +191,23 @@ export function ROIBuilder({ entries, onChange, department }: ROIBuilderProps) {
                 
                 {isSelected && (
                   <div className="flex items-center gap-1">
-                    <span className="text-muted-foreground">$</span>
+                    {unitConfig.prefix && <span className="text-muted-foreground text-sm">{unitConfig.prefix}</span>}
                     <Input
                       type="number"
-                      placeholder="0"
+                      placeholder={unitConfig.placeholder}
                       value={entry?.value || ''}
                       onChange={(e) => handleValueChange(category, parseInt(e.target.value) || 0)}
                       className="h-8 w-28 font-mono"
                     />
+                    {unitConfig.suffix && <span className="text-muted-foreground text-xs">{unitConfig.suffix}</span>}
                   </div>
                 )}
               </div>
+              {isSelected && (
+                <p className="text-[10px] text-muted-foreground mt-1 ml-10">
+                  Unit: {unitConfig.label}
+                </p>
+              )}
             </div>
           );
         })}
