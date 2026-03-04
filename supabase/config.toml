@@ -4,6 +4,9 @@ project_id = "pbwknkonvukyukeipvzk"
 enabled = true
 site_url = "https://id-preview--36606a72-6807-49ee-80d9-99f2c7655fc6.lovable.app"
 
+[functions.admin-set-password]
+verify_jwt = false
+
 [auth.email]
 enable_confirmations = false
 enable_signup = true
