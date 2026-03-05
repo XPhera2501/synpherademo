@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 
 const ROLES: AppRoleEnum[] = ['super_admin', 'admin', 'creator', 'reviewer', 'viewer'];
 const DEPTS: DepartmentEnum[] = ['Operations', 'Legal', 'R&D', 'Marketing', 'Finance', 'HR', 'IT', 'Executive'];
-const ROI_CATEGORIES = ['Cost Savings', 'Time Savings', 'Risk Mitigation', 'Efficiency', 'New Value'];
+const ROI_CATEGORIES = ['Time', 'Earlier Reaction', 'Waste Reduction', 'Improved Price Negotiation'];
 
 interface UserWithRole {
   id: string;
