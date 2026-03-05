@@ -260,7 +260,7 @@ export async function toggleLock(assetId: string): Promise<boolean> {
 // ==================== Analytics Helpers ====================
 
 const DEPARTMENTS: DepartmentEnum[] = ['Operations', 'Legal', 'R&D', 'Marketing', 'Finance', 'HR', 'IT', 'Executive'];
-const ROI_CATEGORIES = ['Time Savings', 'Risk Mitigation', 'Efficiency', 'Cost Savings', 'New Value'];
+const ROI_CATEGORIES = ['Time', 'Earlier Reaction', 'Waste Reduction', 'Improved Price Negotiation'];
 
 export async function getDepartmentROIMatrix() {
   const assets = await getAssets();

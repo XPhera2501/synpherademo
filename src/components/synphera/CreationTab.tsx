@@ -340,11 +340,11 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       {/* Top row: Prompt Content + Benefits */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top-Left: Prompt Content */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Prompt Content</CardTitle>
+        <Card className="shadow-none">
+          <CardHeader className="pb-2 px-4 pt-4">
+            <CardTitle className="text-base font-semibold">Prompt Content</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 px-4 pb-4">
             <PromptEditor
               value={content}
               onChange={handleContentChange}
@@ -482,14 +482,11 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
         </Card>
 
         {/* Top-Right: Benefits */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Benefits</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Select benefit categories relevant to your department. Values should match the unit shown for each category.
-            </p>
+        <Card className="shadow-none">
+          <CardHeader className="pb-2 px-4 pt-4">
+            <CardTitle className="text-base font-semibold">Benefits</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             <ROIBuilder entries={roiEntries} onChange={setRoiEntries} department={department} />
           </CardContent>
         </Card>
@@ -498,19 +495,19 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       {/* Bottom row: Compliance Validation + Prompt Profile Summary */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Bottom-Left: Compliance Validation */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Compliance Validation</CardTitle>
+        <Card className="shadow-none">
+          <CardHeader className="pb-2 px-4 pt-4">
+            <CardTitle className="text-base font-semibold">Compliance Validation</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 px-4 pb-4">
             {/* Compliance Framework Checkboxes */}
-            <div className="flex items-center gap-6">
+            <div className="grid grid-cols-3 gap-6">
               {[
                 { id: 'eu-ai', label: 'EU AI Act', checked: complianceEU, onChange: setComplianceEU },
                 { id: 'gdpr', label: 'GDPR', checked: complianceGDPR, onChange: setComplianceGDPR },
                 { id: 'hipaa', label: 'HIPAA', checked: complianceHIPAA, onChange: setComplianceHIPAA },
               ].map(fw => (
-                <div key={fw.id} className="flex flex-col items-center gap-1.5">
+                <div key={fw.id} className="flex flex-col items-start gap-2">
                   <Label htmlFor={fw.id} className="text-sm font-medium">{fw.label}</Label>
                   <Checkbox
                     id={fw.id}
@@ -628,16 +625,16 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
         </Card>
 
         {/* Bottom-Right: Overall Prompt Profile Summary */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg italic">Overall Prompt Profile Summary</CardTitle>
+        <Card className="shadow-none">
+          <CardHeader className="pb-2 px-4 pt-4">
+            <CardTitle className="text-base font-semibold italic">Overall Prompt Profile Summary</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3 text-sm">
+          <CardContent className="px-4 pb-4">
+            <div className="space-y-1.5 text-sm">
               {profileSummary.map(({ label, value }) => (
-                <div key={label} className="flex gap-2">
-                  <span className="font-semibold text-foreground whitespace-nowrap">{label}:</span>
-                  <span className="text-muted-foreground">{value}</span>
+                <div key={label} className="flex gap-1.5">
+                  <span className="font-semibold text-foreground whitespace-nowrap text-xs">{label}:</span>
+                  <span className="text-muted-foreground text-xs">{value}</span>
                 </div>
               ))}
             </div>
