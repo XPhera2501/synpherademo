@@ -3,11 +3,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Header } from '@/components/synphera/Header';
 import { CreationTab } from '@/components/synphera/CreationTab';
 import { CollaborationTab } from '@/components/synphera/CollaborationTab';
+import { CatalogueTab } from '@/components/synphera/CatalogueTab';
 import { AnalyticsTab } from '@/components/synphera/AnalyticsTab';
-import { HelpTab } from '@/components/synphera/HelpTab';
 import { AdminTab } from '@/components/synphera/AdminTab';
 import { useAuth } from '@/hooks/useAuth';
-import { FileText, Users, BarChart3, HelpCircle, Settings, ShieldCheck } from 'lucide-react';
+import { FileText, Users, BarChart3, Library, Settings } from 'lucide-react';
 
 export default function Index() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -37,17 +37,17 @@ export default function Index() {
               <span>Validate</span>
             </TabsTrigger>
             <TabsTrigger 
-              value="analytics"
+              value="catalogue"
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
-              <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <Library className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>Catalogue</span>
             </TabsTrigger>
             <TabsTrigger 
-              value="help"
+              value="dashboard"
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
-              <HelpCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>Dashboard</span>
             </TabsTrigger>
             {isAdmin && (
@@ -69,12 +69,12 @@ export default function Index() {
             <CollaborationTab refreshKey={refreshKey} onAssetUpdated={handleRefresh} />
           </TabsContent>
           
-          <TabsContent value="analytics" className="animate-fade-in-up">
-            <AnalyticsTab refreshKey={refreshKey} />
+          <TabsContent value="catalogue" className="animate-fade-in-up">
+            <CatalogueTab refreshKey={refreshKey} />
           </TabsContent>
           
-          <TabsContent value="help" className="animate-fade-in-up">
-            <HelpTab />
+          <TabsContent value="dashboard" className="animate-fade-in-up">
+            <AnalyticsTab refreshKey={refreshKey} />
           </TabsContent>
           
           {isAdmin && (
@@ -87,12 +87,8 @@ export default function Index() {
 
       {/* Footer */}
       <footer className="border-t border-border bg-card/50 py-3">
-        <div className="mx-auto max-w-7xl px-6 flex items-center justify-between text-xs text-muted-foreground">
+        <div className="mx-auto max-w-7xl px-6 flex items-center justify-center text-xs text-muted-foreground">
           <span>© {new Date().getFullYear()} SynPhera™ — Enterprise GenAI Governance</span>
-          <div className="flex items-center gap-1.5">
-            <ShieldCheck className="h-3.5 w-3.5 text-status-green" />
-            <span>ISO 27001 Certified · All prompt data encrypted at rest & in transit</span>
-          </div>
         </div>
       </footer>
     </div>

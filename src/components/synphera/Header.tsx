@@ -1,9 +1,9 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Zap, LogOut, User } from 'lucide-react';
+import { LogOut, User } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ThemeToggle } from './ThemeToggle';
-import synpheraLogo from '@/assets/synphera-logo.jpg';
+import synpheraLogo from '@/assets/synphera-logo-transparent.png';
 
 export function Header() {
   const { profile, signOut, user } = useAuth();
@@ -15,7 +15,7 @@ export function Header() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-5">
             <div className="relative">
-              <img src={synpheraLogo} alt="SynPhera logo" className="h-20 w-20 rounded-xl object-cover synphera-glow" />
+              <img src={synpheraLogo} alt="SynPhera logo" className="h-20 w-20 rounded-xl object-contain synphera-glow" />
               <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-synphera-magenta text-[11px] font-bold text-primary-foreground">
                 13
               </div>
@@ -31,11 +31,6 @@ export function Header() {
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="hidden items-center gap-2 text-sm text-muted-foreground md:flex">
-              <Zap className="h-4 w-4 text-primary" />
-              <span>ISO 27001 Compliant</span>
-            </div>
-
             <ThemeToggle />
 
             <div className="flex items-center gap-3 rounded-lg border border-border bg-background/50 px-3 py-2">
