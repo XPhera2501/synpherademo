@@ -237,7 +237,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={deptBarData} layout="vertical" margin={{ left: 0, right: 16 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                      <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                       <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} width={70} />
                       <Tooltip content={({ payload }) => {
                         if (!payload?.[0]) return null;
