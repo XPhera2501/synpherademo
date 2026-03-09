@@ -87,8 +87,10 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     setComplianceValidated(false);
     if (val.length > 20) {
       setValidation(validatePromptBestPractices(val, title));
+      setAnalysis(analyzePrompt(val));
     } else {
       setValidation(null);
+      setAnalysis(null);
     }
   };
 
