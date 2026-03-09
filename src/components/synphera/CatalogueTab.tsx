@@ -190,6 +190,99 @@ export function CatalogueTab({ refreshKey }: CatalogueTabProps) {
                   );
                 })()}
 
+                {/* Prompt Analysis Metadata */}
+                {(() => {
+                  const meta = (selectedAsset as any).metadata;
+                  if (!meta || !meta.taskType) return null;
+                  return (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Activity className="h-4 w-4 text-primary" />
+                          Prompt Analysis
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-lg border p-2.5 space-y-0.5">
+                            <span className="text-[10px] font-medium text-muted-foreground">Task Classification</span>
+                            <p className="text-sm font-semibold">{meta.taskType}</p>
+                          </div>
+                          <div className="rounded-lg border p-2.5 space-y-0.5">
+                            <span className="text-[10px] font-medium text-muted-foreground">Determinism Score</span>
+                            <p className="text-sm font-semibold">{meta.determinismScore} / 100</p>
+                            <div className="w-full bg-muted rounded-full h-1">
+                              <div
+                                className="h-1 rounded-full transition-all"
+                                style={{
+                                  width: `${meta.determinismScore}%`,
+                                  backgroundColor: meta.determinismScore >= 70 ? 'hsl(var(--status-green))' : meta.determinismScore >= 40 ? 'hsl(var(--status-amber))' : 'hsl(var(--status-red))',
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Risk Flags */}
+                        {meta.flags && (
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-medium text-muted-foreground">Risk & Compliance Signals</span>
+                            {Object.entries(meta.flags).map(([key, val]) => (
+                              <p key={key} className="text-xs flex items-center gap-1.5">
+                                {val ? <AlertTriangle className="h-3 w-3 text-status-amber" /> : <CheckCircle className="h-3 w-3 text-status-green" />}
+                                {key}: {val ? 'Yes' : 'No'}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Scoring Axes */}
+                        {meta.scores && (
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-medium text-muted-foreground">Scoring Axes</span>
+                            <div className="grid gap-1.5 sm:grid-cols-2">
+                              {Object.entries(meta.scores).map(([axis, val]) => (
+                                <div key={axis} className="flex items-center gap-2">
+                                  <span className="text-[10px] capitalize w-20 text-muted-foreground">{axis}</span>
+                                  <div className="flex-1 bg-muted rounded-full h-1">
+                                    <div className="h-1 rounded-full bg-primary transition-all" style={{ width: `${(val as number) * 100}%` }} />
+                                  </div>
+                                  <span className="text-[10px] font-mono w-6 text-right">{(val as number).toFixed(1)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Routing */}
+                        {meta.routing?.allocation && (
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+                              <Cpu className="h-3 w-3" /> Execution Routing
+                            </span>
+                            <div className="flex gap-2 flex-wrap">
+                              {Object.entries(meta.routing.allocation).map(([engine, pct]) => (
+                                <Tooltip key={engine}>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="outline" className="gap-1 text-[10px] cursor-help">
+                                      {engine === 'LLM' && <Brain className="h-2.5 w-2.5" />}
+                                      {engine === 'C++' && <Cpu className="h-2.5 w-2.5" />}
+                                      {engine}: {pct as number}%
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="text-xs">{meta.routing.rationale?.[engine]}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
+
                 {selectedAsset.commit_message && (
                   <div className="text-xs text-muted-foreground">
                     <span className="font-medium">Message:</span> {selectedAsset.commit_message}
