@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ROICategory, ScanResult } from '@/lib/synphera-types';
 import { runSecurityScan } from '@/lib/security-scanner';
-import { validatePromptBestPractices, type ValidationResult } from '@/lib/prompt-validator';
+import { validatePromptBestPractices, analyzePrompt, type ValidationResult, type PromptAnalysis } from '@/lib/prompt-validator';
 import { createAsset, saveROIFact, addAuditLog } from '@/lib/supabase-store';
 import type { DepartmentEnum, AssetStatusEnum } from '@/lib/supabase-store';
 import { ScanResultPanel } from './ScanResultPanel';
@@ -16,7 +16,7 @@ import { ROIBuilder } from './ROIBuilder';
 import { PromptEditor } from './PromptEditor';
 import { AssignForReviewDialog } from './AssignForReviewDialog';
 import { useAuth } from '@/hooks/useAuth';
-import { Shield, Save, AlertTriangle, MessageSquare, Lock, Info, CheckCircle, XCircle, Users, Ban } from 'lucide-react';
+import { Shield, Save, AlertTriangle, MessageSquare, Lock, Info, CheckCircle, XCircle, Users, Ban, Activity, Cpu, Brain } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ROIEntry {
@@ -59,6 +59,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [analysis, setAnalysis] = useState<PromptAnalysis | null>(null);
 
   // Phase 1: Compliance checkboxes
   const [complianceEU, setComplianceEU] = useState(false);
@@ -86,8 +87,10 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     setComplianceValidated(false);
     if (val.length > 20) {
       setValidation(validatePromptBestPractices(val, title));
+      setAnalysis(analyzePrompt(val));
     } else {
       setValidation(null);
+      setAnalysis(null);
     }
   };
 
@@ -248,7 +251,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   const resetForm = () => {
     setTitle(''); setContent(''); setRoiEntries([]);
     setJustification(''); setCommitMessage(''); setScanResult(null);
-    setValidation(null);
+    setValidation(null); setAnalysis(null);
     setComplianceEU(false); setComplianceGDPR(false); setComplianceHIPAA(false);
     setComplianceResults([]); setComplianceValidated(false);
   };
@@ -259,16 +262,17 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     return [
       { label: 'Company', value: 'X-Phera' },
       { label: 'Department', value: profile?.department || 'Not set' },
+      { label: 'Task Classification', value: analysis?.taskType || 'Pending analysis' },
+      { label: 'Determinism Score', value: analysis ? `${analysis.determinismScore} / 100` : 'Pending analysis' },
       { label: 'Stability', value: validation ? (validation.score >= 70 ? 'High' : validation.score >= 40 ? 'Medium' : 'Low') : 'Pending validation' },
-      { label: 'Determinism', value: content.length > 100 ? 'Very High Post-Implementation' : 'Pending' },
-      { label: 'LLM Dependency', value: 'Limited to presentation layer' },
+      { label: 'LLM Dependency', value: analysis ? `${analysis.routing.allocation.LLM}%` : 'Pending analysis' },
       { label: 'Audit Readiness', value: scanResult ? (scanResult.status === 'GREEN' ? 'Strong (logging enabled)' : 'Requires remediation') : 'Pending scan' },
       { label: 'Scalability', value: 'Enterprise-grade' },
       { label: 'Code Portability', value: 'Medium' },
       { label: 'Benefits', value: benefitSummary || 'No benefits configured' },
       { label: 'Compliance', value: complianceAllClean ? complianceResults.map(r => r.framework).join(', ') + ' — Clean' : complianceValidated ? 'Issues detected' : 'Pending validation' },
     ];
-  }, [validation, content, scanResult, roiEntries, complianceResults, complianceValidated, complianceAllClean, profile?.department]);
+  }, [validation, analysis, content, scanResult, roiEntries, complianceResults, complianceValidated, complianceAllClean, profile?.department]);
 
   if (!canEdit) {
     return (
@@ -466,6 +470,95 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Prompt Analysis Results */}
+      {analysis && (
+        <Card className="shadow-none">
+          <CardHeader className="pb-2 px-4 pt-4">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Prompt Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Task Classification */}
+              <div className="rounded-lg border p-3 space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">Task Classification</span>
+                <p className="text-sm font-semibold">{analysis.taskType}</p>
+              </div>
+
+              {/* Determinism Score */}
+              <div className="rounded-lg border p-3 space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">Determinism Score</span>
+                <p className="text-sm font-semibold">{analysis.determinismScore} / 100</p>
+                <div className="w-full bg-muted rounded-full h-1.5">
+                  <div
+                    className="h-1.5 rounded-full transition-all"
+                    style={{
+                      width: `${analysis.determinismScore}%`,
+                      backgroundColor: analysis.determinismScore >= 70 ? 'hsl(var(--status-green))' : analysis.determinismScore >= 40 ? 'hsl(var(--status-amber))' : 'hsl(var(--status-red))',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Risk Flags */}
+              <div className="rounded-lg border p-3 space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">Risk & Compliance Signals</span>
+                {Object.entries(analysis.flags).map(([key, val]) => (
+                  <p key={key} className="text-xs flex items-center gap-1.5">
+                    {val ? <AlertTriangle className="h-3 w-3 text-status-amber" /> : <CheckCircle className="h-3 w-3 text-status-green" />}
+                    {key}: {val ? 'Yes' : 'No'}
+                  </p>
+                ))}
+              </div>
+            </div>
+
+            {/* Scoring Axes */}
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-muted-foreground">Scoring Axes</span>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {Object.entries(analysis.scores).map(([axis, val]) => (
+                  <div key={axis} className="flex items-center gap-2">
+                    <span className="text-xs capitalize w-24 text-muted-foreground">{axis}</span>
+                    <div className="flex-1 bg-muted rounded-full h-1.5">
+                      <div
+                        className="h-1.5 rounded-full bg-primary transition-all"
+                        style={{ width: `${val * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-mono w-8 text-right">{val.toFixed(1)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Execution Routing */}
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <Cpu className="h-3 w-3" /> Execution Routing Recommendation
+              </span>
+              <div className="flex gap-2 flex-wrap">
+                {Object.entries(analysis.routing.allocation).map(([engine, pct]) => (
+                  <Tooltip key={engine}>
+                    <TooltipTrigger asChild>
+                      <Badge variant="outline" className="gap-1 text-xs cursor-help">
+                        {engine === 'LLM' && <Brain className="h-3 w-3" />}
+                        {engine === 'C++' && <Cpu className="h-3 w-3" />}
+                        {engine}: {pct}%
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">{analysis.routing.rationale[engine]}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Message to reviewer + action buttons */}
       <div className="space-y-3">
