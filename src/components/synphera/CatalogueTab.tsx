@@ -132,8 +132,8 @@ export function CatalogueTab({ refreshKey }: CatalogueTabProps) {
     return filtered;
   };
 
-  const filteredAssignments = useMemo(() => applyFilters(assignedToMe), [assignedToMe, searchQuery, statusFilter, dateFilter]);
-  const filteredDeptLibrary = useMemo(() => applyFilters(deptLibrary), [deptLibrary, searchQuery, statusFilter, dateFilter]);
+  const filteredAssignments = useMemo(() => applyFilters(assignedToMe), [assignedToMe, searchQuery, statusFilter, dateFilter, sortBy]);
+  const filteredDeptLibrary = useMemo(() => applyFilters(deptLibrary), [deptLibrary, searchQuery, statusFilter, dateFilter, sortBy]);
 
   const getAssetFacts = (assetId: string) => facts.filter(f => f.asset_id === assetId);
 
