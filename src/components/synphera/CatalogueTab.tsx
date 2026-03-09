@@ -53,10 +53,11 @@ export function CatalogueTab({ refreshKey }: CatalogueTabProps) {
   const [facts, setFacts] = useState<DbROIFact[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
+  // Filters & sorting
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('date_desc');
 
   // Detail dialog
   const [selectedAsset, setSelectedAsset] = useState<DbPromptAsset | null>(null);
