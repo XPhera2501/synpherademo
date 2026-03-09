@@ -1,0 +1,1 @@
+ALTER TABLE public.prompt_assets ADD COLUMN IF NOT EXISTS metadata jsonb DEFAULT NULL;
