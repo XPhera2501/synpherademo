@@ -4,11 +4,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SecurityBadge } from './SecurityBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { getAssets, getROIFacts, getProfiles, type DbPromptAsset, type DbROIFact, type DbProfile } from '@/lib/supabase-store';
 import type { SecurityStatus } from '@/lib/synphera-types';
-import { Search, FileText, Eye, TrendingUp } from 'lucide-react';
+import { Search, FileText, Eye, TrendingUp, Activity, Cpu, Brain, AlertTriangle, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface CatalogueTabProps {
