@@ -471,6 +471,95 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
         </Card>
       </div>
 
+      {/* Prompt Analysis Results */}
+      {analysis && (
+        <Card className="shadow-none">
+          <CardHeader className="pb-2 px-4 pt-4">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Prompt Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Task Classification */}
+              <div className="rounded-lg border p-3 space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">Task Classification</span>
+                <p className="text-sm font-semibold">{analysis.taskType}</p>
+              </div>
+
+              {/* Determinism Score */}
+              <div className="rounded-lg border p-3 space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">Determinism Score</span>
+                <p className="text-sm font-semibold">{analysis.determinismScore} / 100</p>
+                <div className="w-full bg-muted rounded-full h-1.5">
+                  <div
+                    className="h-1.5 rounded-full transition-all"
+                    style={{
+                      width: `${analysis.determinismScore}%`,
+                      backgroundColor: analysis.determinismScore >= 70 ? 'hsl(var(--status-green))' : analysis.determinismScore >= 40 ? 'hsl(var(--status-amber))' : 'hsl(var(--status-red))',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Risk Flags */}
+              <div className="rounded-lg border p-3 space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">Risk & Compliance Signals</span>
+                {Object.entries(analysis.flags).map(([key, val]) => (
+                  <p key={key} className="text-xs flex items-center gap-1.5">
+                    {val ? <AlertTriangle className="h-3 w-3 text-status-amber" /> : <CheckCircle className="h-3 w-3 text-status-green" />}
+                    {key}: {val ? 'Yes' : 'No'}
+                  </p>
+                ))}
+              </div>
+            </div>
+
+            {/* Scoring Axes */}
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-muted-foreground">Scoring Axes</span>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {Object.entries(analysis.scores).map(([axis, val]) => (
+                  <div key={axis} className="flex items-center gap-2">
+                    <span className="text-xs capitalize w-24 text-muted-foreground">{axis}</span>
+                    <div className="flex-1 bg-muted rounded-full h-1.5">
+                      <div
+                        className="h-1.5 rounded-full bg-primary transition-all"
+                        style={{ width: `${val * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-mono w-8 text-right">{val.toFixed(1)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Execution Routing */}
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <Cpu className="h-3 w-3" /> Execution Routing Recommendation
+              </span>
+              <div className="flex gap-2 flex-wrap">
+                {Object.entries(analysis.routing.allocation).map(([engine, pct]) => (
+                  <Tooltip key={engine}>
+                    <TooltipTrigger asChild>
+                      <Badge variant="outline" className="gap-1 text-xs cursor-help">
+                        {engine === 'LLM' && <Brain className="h-3 w-3" />}
+                        {engine === 'C++' && <Cpu className="h-3 w-3" />}
+                        {engine}: {pct}%
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">{analysis.routing.rationale[engine]}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Message to reviewer + action buttons */}
       <div className="space-y-3">
         <div className="space-y-2">
