@@ -176,7 +176,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
         </Card>
       </div>
 
-      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+      <div className="grid gap-6 grid-cols-1 grid-cols-1 lg:grid-cols-2">
         {/* Sunburst */}
         <Card>
           <CardHeader>
@@ -318,7 +318,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
       {/* Enterprise Value Bar */}
       <Card className="synphera-border-glow">
         <CardContent className="py-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center justify-between fl3x-wrap gap-2">
             <div className="flex items-center gap-3">
               <DollarSign className="h-6 w-6 text-primary" />
               <div>
