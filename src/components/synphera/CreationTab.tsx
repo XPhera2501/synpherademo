@@ -59,6 +59,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [analysis, setAnalysis] = useState<PromptAnalysis | null>(null);
 
   // Phase 1: Compliance checkboxes
   const [complianceEU, setComplianceEU] = useState(false);
