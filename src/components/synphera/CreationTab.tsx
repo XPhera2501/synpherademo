@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ROICategory, ScanResult } from '@/lib/synphera-types';
 import { runSecurityScan } from '@/lib/security-scanner';
-import { validatePromptBestPractices, type ValidationResult } from '@/lib/prompt-validator';
+import { validatePromptBestPractices, analyzePrompt, type ValidationResult, type PromptAnalysis } from '@/lib/prompt-validator';
 import { createAsset, saveROIFact, addAuditLog } from '@/lib/supabase-store';
 import type { DepartmentEnum, AssetStatusEnum } from '@/lib/supabase-store';
 import { ScanResultPanel } from './ScanResultPanel';
