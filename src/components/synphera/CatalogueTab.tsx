@@ -273,6 +273,17 @@ export function CatalogueTab({ refreshKey }: CatalogueTabProps) {
             <SelectItem value="90d">Last 90 Days</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="w-[150px] h-9 text-sm">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="date_desc">Newest First</SelectItem>
+            <SelectItem value="date_asc">Oldest First</SelectItem>
+            <SelectItem value="title_asc">Title A-Z</SelectItem>
+            <SelectItem value="title_desc">Title Z-A</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Section 1: Assignments to Me */}
