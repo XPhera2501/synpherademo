@@ -129,13 +129,20 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     setComplianceResults(results);
     setComplianceValidated(true);
 
+    // Run prompt analyzer on Validate
+    if (content.length > 20) {
+      const promptAnalysis = analyzePrompt(content);
+      setAnalysis(promptAnalysis);
+      toast.success('Prompt analysis complete!');
+    }
+
     const hasErrors = results.some(r => r.status === 'error');
     if (hasErrors) {
       toast.error('Compliance validation failed. See details below.');
     } else if (results.length > 0) {
       toast.success('All compliance checks passed!');
-    } else {
-      toast.warning('Select at least one compliance framework to validate.');
+    } else if (content.length <= 20) {
+      toast.warning('Enter more prompt content before validating.');
     }
   };
 
