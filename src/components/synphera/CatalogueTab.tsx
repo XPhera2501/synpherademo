@@ -53,10 +53,11 @@ export function CatalogueTab({ refreshKey }: CatalogueTabProps) {
   const [facts, setFacts] = useState<DbROIFact[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
+  // Filters & sorting
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('date_desc');
 
   // Detail dialog
   const [selectedAsset, setSelectedAsset] = useState<DbPromptAsset | null>(null);
@@ -95,7 +96,7 @@ export function CatalogueTab({ refreshKey }: CatalogueTabProps) {
     return assets.filter(a => a.department === dept && a.assigned_to !== user.id);
   }, [assets, profile?.department, user]);
 
-  // Apply filters
+  // Apply filters and sorting
   const applyFilters = (list: DbPromptAsset[]) => {
     let filtered = list;
 
@@ -119,11 +120,20 @@ export function CatalogueTab({ refreshKey }: CatalogueTabProps) {
       filtered = filtered.filter(a => new Date(a.created_at) >= cutoff);
     }
 
+    // Sort
+    filtered = [...filtered].sort((a, b) => {
+      if (sortBy === 'date_asc') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      if (sortBy === 'date_desc') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (sortBy === 'title_asc') return a.title.localeCompare(b.title);
+      if (sortBy === 'title_desc') return b.title.localeCompare(a.title);
+      return 0;
+    });
+
     return filtered;
   };
 
-  const filteredAssignments = useMemo(() => applyFilters(assignedToMe), [assignedToMe, searchQuery, statusFilter, dateFilter]);
-  const filteredDeptLibrary = useMemo(() => applyFilters(deptLibrary), [deptLibrary, searchQuery, statusFilter, dateFilter]);
+  const filteredAssignments = useMemo(() => applyFilters(assignedToMe), [assignedToMe, searchQuery, statusFilter, dateFilter, sortBy]);
+  const filteredDeptLibrary = useMemo(() => applyFilters(deptLibrary), [deptLibrary, searchQuery, statusFilter, dateFilter, sortBy]);
 
   const getAssetFacts = (assetId: string) => facts.filter(f => f.asset_id === assetId);
 
@@ -261,6 +271,17 @@ export function CatalogueTab({ refreshKey }: CatalogueTabProps) {
             <SelectItem value="7d">Last 7 Days</SelectItem>
             <SelectItem value="30d">Last 30 Days</SelectItem>
             <SelectItem value="90d">Last 90 Days</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="w-[150px] h-9 text-sm">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="date_desc">Newest First</SelectItem>
+            <SelectItem value="date_asc">Oldest First</SelectItem>
+            <SelectItem value="title_asc">Title A-Z</SelectItem>
+            <SelectItem value="title_desc">Title Z-A</SelectItem>
           </SelectContent>
         </Select>
       </div>

@@ -27,7 +27,7 @@ export default function Index() {
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>Ingest</span>
+              <span>Input</span>
             </TabsTrigger>
             <TabsTrigger 
               value="collaboration"
@@ -85,7 +85,6 @@ export default function Index() {
         </Tabs>
       </div>
 
-      {/* Footer */}
       <footer className="border-t border-border bg-card/50 py-3">
         <div className="mx-auto max-w-7xl px-6 flex items-center justify-center text-xs text-muted-foreground">
           <span>© {new Date().getFullYear()} SynPhera™ — Enterprise GenAI Governance</span>

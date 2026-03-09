@@ -16,7 +16,6 @@ interface PromptEditorProps {
 export function PromptEditor({ value, onChange, placeholder, label = 'Prompt Content', minHeight = '200px', findings = [] }: PromptEditorProps) {
   const variables = extractVariables(value);
 
-  // Build line-level highlights from findings
   const highlightedLines = useMemo(() => {
     const map = new Map<number, 'HIGH' | 'MEDIUM' | 'LOW'>();
     for (const f of findings) {
@@ -30,7 +29,6 @@ export function PromptEditor({ value, onChange, placeholder, label = 'Prompt Con
     return map;
   }, [findings]);
 
-  // Render content with highlighted lines if findings exist
   const lines = value.split('\n');
   const hasHighlights = highlightedLines.size > 0;
 
@@ -50,7 +48,6 @@ export function PromptEditor({ value, onChange, placeholder, label = 'Prompt Con
         )}
       </div>
 
-      {/* Highlighted line overlay shown below textarea when findings exist */}
       {hasHighlights && (
         <div className="rounded-lg border border-border bg-card overflow-auto max-h-40 font-mono text-xs">
           {lines.map((line, i) => {
@@ -78,9 +75,6 @@ export function PromptEditor({ value, onChange, placeholder, label = 'Prompt Con
         className="font-mono text-sm bg-card"
         style={{ minHeight }}
       />
-      <p className="text-xs text-muted-foreground">
-        ℹ️ Use {'{{variable}}'} syntax for dynamic placeholders. Avoid PII, proprietary markers, and sensitive data.
-      </p>
     </div>
   );
 }

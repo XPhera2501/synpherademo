@@ -1,13 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ROICategory, ROI_CATEGORIES } from '@/lib/synphera-types';
-import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Plus } from 'lucide-react';
 
-interface ROIEntry {
+export interface ROIEntry {
   category: ROICategory;
   value: number;
+  description: string;
 }
 
 interface ROIBuilderProps {
@@ -16,32 +19,34 @@ interface ROIBuilderProps {
   department?: string;
 }
 
-const CATEGORY_UNITS: Record<ROICategory, { suffix: string; placeholder: string }> = {
-  'Time': { suffix: 'hr', placeholder: 'e.g., -4' },
-  'Earlier Reaction': { suffix: 'days', placeholder: 'e.g., 2' },
-  'Waste Reduction': { suffix: 'kg/Tn', placeholder: 'e.g., 50' },
-  'Improved Price Negotiation': { suffix: '', placeholder: 'e.g., -0.05' },
-};
-
 export function ROIBuilder({ entries, onChange, department }: ROIBuilderProps) {
-  const [selectedCategories, setSelectedCategories] = useState<ROICategory[]>(
-    entries.map(e => e.category)
-  );
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<ROICategory | null>(null);
+  const [editValue, setEditValue] = useState<number>(0);
+  const [editDescription, setEditDescription] = useState('');
 
-  const handleCategoryToggle = (category: ROICategory, checked: boolean) => {
-    if (checked) {
-      setSelectedCategories([...selectedCategories, category]);
-      onChange([...entries, { category, value: 0 }]);
-    } else {
-      setSelectedCategories(selectedCategories.filter(c => c !== category));
-      onChange(entries.filter(e => e.category !== category));
-    }
+  const openCategoryDialog = (category: ROICategory) => {
+    const existing = entries.find(e => e.category === category);
+    setSelectedCategory(category);
+    setEditValue(existing?.value || 0);
+    setEditDescription(existing?.description || '');
+    setDialogOpen(true);
   };
 
-  const handleValueChange = (category: ROICategory, value: number) => {
-    onChange(entries.map(e =>
-      e.category === category ? { ...e, value } : e
-    ));
+  const handleSaveBenefit = () => {
+    if (!selectedCategory) return;
+    const updated = entries.filter(e => e.category !== selectedCategory);
+    if (editValue !== 0 || editDescription.trim()) {
+      updated.push({ category: selectedCategory, value: editValue, description: editDescription.trim() });
+    }
+    onChange(updated);
+    setDialogOpen(false);
+  };
+
+  const handleRemoveBenefit = () => {
+    if (!selectedCategory) return;
+    onChange(entries.filter(e => e.category !== selectedCategory));
+    setDialogOpen(false);
   };
 
   return (
@@ -50,49 +55,35 @@ export function ROIBuilder({ entries, onChange, department }: ROIBuilderProps) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30">
-              <th className="text-left py-2 px-3 font-medium text-muted-foreground text-xs w-8"></th>
               <th className="text-left py-2 px-3 font-medium text-muted-foreground text-xs">Category</th>
-              <th className="text-right py-2 px-3 font-medium text-muted-foreground text-xs">Value</th>
+              <th className="text-right py-2 px-3 font-medium text-muted-foreground text-xs">Value (%)</th>
+              <th className="text-right py-2 px-3 font-medium text-muted-foreground text-xs w-16"></th>
             </tr>
           </thead>
           <tbody>
             {ROI_CATEGORIES.map((category) => {
-              const isSelected = selectedCategories.includes(category);
               const entry = entries.find(e => e.category === category);
-              const unitConfig = CATEGORY_UNITS[category];
-
               return (
-                <tr key={category} className="border-b border-border last:border-b-0">
+                <tr key={category} className="border-b border-border last:border-b-0 hover:bg-muted/20 cursor-pointer" onClick={() => openCategoryDialog(category)}>
                   <td className="py-2 px-3">
-                    <Checkbox
-                      id={category}
-                      checked={isSelected}
-                      onCheckedChange={(checked) => handleCategoryToggle(category, !!checked)}
-                    />
-                  </td>
-                  <td className="py-2 px-3">
-                    <Label htmlFor={category} className="cursor-pointer text-sm font-medium">
-                      {category}
-                    </Label>
+                    <span className="text-sm font-medium">{category}</span>
+                    {entry?.description && (
+                      <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{entry.description}</p>
+                    )}
                   </td>
                   <td className="py-2 px-3 text-right">
-                    {isSelected ? (
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Input
-                          type="number"
-                          step="any"
-                          placeholder={unitConfig.placeholder}
-                          value={entry?.value || ''}
-                          onChange={(e) => handleValueChange(category, parseFloat(e.target.value) || 0)}
-                          className="h-7 w-24 font-mono text-right text-xs"
-                        />
-                        {unitConfig.suffix && (
-                          <span className="text-xs text-muted-foreground w-8">{unitConfig.suffix}</span>
-                        )}
-                      </div>
+                    {entry ? (
+                      <span className={`font-mono text-sm font-medium ${entry.value >= 0 ? 'text-status-green' : 'text-status-red'}`}>
+                        {entry.value > 0 ? '+' : ''}{entry.value}%
+                      </span>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
+                  </td>
+                  <td className="py-2 px-3 text-right">
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); openCategoryDialog(category); }}>
+                      <Plus className="h-3 w-3" />
+                    </Button>
                   </td>
                 </tr>
               );
@@ -100,6 +91,43 @@ export function ROIBuilder({ entries, onChange, department }: ROIBuilderProps) {
           </tbody>
         </table>
       </div>
+
+      {/* Benefit Detail Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base">{selectedCategory}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Benefit Description</Label>
+              <Textarea
+                value={editDescription}
+                onChange={e => setEditDescription(e.target.value)}
+                placeholder="Describe the expected benefit in detail..."
+                className="bg-card text-sm min-h-[100px]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Value (% — positive or negative)</Label>
+              <Input
+                type="number"
+                step="any"
+                value={editValue || ''}
+                onChange={e => setEditValue(parseFloat(e.target.value) || 0)}
+                placeholder="e.g., 5 or -2.5"
+                className="font-mono bg-card"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            {entries.find(e => e.category === selectedCategory) && (
+              <Button variant="outline" className="text-destructive" onClick={handleRemoveBenefit}>Remove</Button>
+            )}
+            <Button onClick={handleSaveBenefit}>Save Benefit</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
