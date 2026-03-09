@@ -96,7 +96,7 @@ export function CatalogueTab({ refreshKey }: CatalogueTabProps) {
     return assets.filter(a => a.department === dept && a.assigned_to !== user.id);
   }, [assets, profile?.department, user]);
 
-  // Apply filters
+  // Apply filters and sorting
   const applyFilters = (list: DbPromptAsset[]) => {
     let filtered = list;
 
@@ -119,6 +119,15 @@ export function CatalogueTab({ refreshKey }: CatalogueTabProps) {
       else if (dateFilter === '90d') cutoff.setDate(now.getDate() - 90);
       filtered = filtered.filter(a => new Date(a.created_at) >= cutoff);
     }
+
+    // Sort
+    filtered = [...filtered].sort((a, b) => {
+      if (sortBy === 'date_asc') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      if (sortBy === 'date_desc') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (sortBy === 'title_asc') return a.title.localeCompare(b.title);
+      if (sortBy === 'title_desc') return b.title.localeCompare(a.title);
+      return 0;
+    });
 
     return filtered;
   };
