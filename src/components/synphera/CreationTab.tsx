@@ -172,6 +172,14 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     }
     
     setIsSaving(true);
+    const metadata = analysis ? {
+      taskType: analysis.taskType,
+      determinismScore: analysis.determinismScore,
+      scores: analysis.scores,
+      flags: analysis.flags,
+      routing: analysis.routing,
+    } : null;
+
     const asset = await createAsset({
       title: title.trim(),
       content: content.trim(),
@@ -187,7 +195,8 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       commit_message: commitMessage.trim(),
       is_locked: false,
       tags: [],
-    });
+      metadata,
+    } as any);
     
     if (asset) {
       for (const entry of roiEntries) {
