@@ -125,39 +125,39 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         <Card className="metric-card">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 p-4">
             <CardDescription className="flex items-center gap-2 text-xs"><DollarSign className="h-3.5 w-3.5" />Enterprise Value</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl lg:text-3xl font-bold text-primary font-mono">${totalValue.toLocaleString()}</p>
+          <CardContent className="p-4 pt-0">
+            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary font-mono truncate">${totalValue.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card className="metric-card">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 p-4">
             <CardDescription className="flex items-center gap-2 text-xs"><GitBranch className="h-3.5 w-3.5" />Total Assets</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl lg:text-3xl font-bold text-foreground font-mono">{assets.length}</p>
+          <CardContent className="p-4 pt-0">
+            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground font-mono">{assets.length}</p>
             <p className="text-xs text-muted-foreground mt-1">{forkedCount} forked • {lockedCount} locked</p>
           </CardContent>
         </Card>
         <Card className="metric-card">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 p-4">
             <CardDescription className="flex items-center gap-2 text-xs"><Activity className="h-3.5 w-3.5" />Versions</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl lg:text-3xl font-bold text-foreground font-mono">{versionCount}</p>
+          <CardContent className="p-4 pt-0">
+            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground font-mono">{versionCount}</p>
             <p className="text-xs text-muted-foreground mt-1">Avg {(versionCount / Math.max(assets.length, 1)).toFixed(1)}/asset</p>
           </CardContent>
         </Card>
         <Card className="metric-card">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 p-4">
             <CardDescription className="flex items-center gap-2 text-xs"><Shield className="h-3.5 w-3.5" />Security</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2 mt-1">
+          <CardContent className="p-4 pt-0">
+            <div className="flex items-center gap-2 flex-wrap mt-1">
               <span className="text-xs flex items-center gap-1"><CheckCircle className="h-3 w-3 text-status-green" />{securityStats.green}</span>
               <span className="text-xs flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-status-amber" />{securityStats.amber}</span>
               <span className="text-xs flex items-center gap-1"><XCircle className="h-3 w-3 text-status-red" />{securityStats.red}</span>
@@ -165,18 +165,18 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
             </div>
           </CardContent>
         </Card>
-        <Card className="metric-card">
-          <CardHeader className="pb-2">
+        <Card className="metric-card sm:col-span-2 lg:col-span-1">
+          <CardHeader className="pb-2 p-4">
             <CardDescription className="flex items-center gap-2 text-xs"><Users className="h-3.5 w-3.5" />Audit Events</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl lg:text-3xl font-bold text-foreground font-mono">{auditCount}</p>
+          <CardContent className="p-4 pt-0">
+            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground font-mono">{auditCount}</p>
             <p className="text-xs text-muted-foreground mt-1">Total actions logged</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 grid-cols-1 grid-cols-1 grid-cols-1 lg:grid-cols-2">
         {/* Sunburst */}
         <Card>
           <CardHeader>
@@ -318,7 +318,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
       {/* Enterprise Value Bar */}
       <Card className="synphera-border-glow">
         <CardContent className="py-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center justif3-between fl3x-wrap gap-2">
             <div className="flex items-center gap-3">
               <DollarSign className="h-6 w-6 text-primary" />
               <div>
@@ -326,7 +326,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
                 <p className="text-xs text-muted-foreground">{assets.length} assets · {facts.length} ROI facts quantified</p>
               </div>
             </div>
-            <p className="text-3xl font-bold font-mono text-primary">${totalValue.toLocaleString()}</p>
+            <p className="text-2xl sm:text-3xl font-bold font-mono text-primary">${totalValue.toLocaleString()}</p>
           </div>
         </CardContent>
       </Card>

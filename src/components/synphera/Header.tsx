@@ -12,19 +12,19 @@ export function Header() {
     <header className="relative overflow-hidden border-b border-border bg-card">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-synphera-magenta/5" />
       <div className="relative mx-auto max-w-7xl px-6 py-4 sm:py-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-5">
-            <div className="relative">
-              <img src={synpheraLogo} alt="SynPhera logo" className="h-20 w-20 rounded-xl object-contain synphera-glow" />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+            <div className="relative flex-shrink-0">
+              <img src={synpheraLogo} alt="SynPhera logo" className="h-12 w-12 sm:h-20 sm:w-20 rounded-xl object-contain synphera-glow" />
               <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-synphera-magenta text-[11px] font-bold text-primary-foreground">
                 13
               </div>
             </div>
-            <div>
-              <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground">
+            <div className="min-w-0">
+              <h1 className="font-heading text-xl sm:text-3xl font-bold tracking-tight text-foreground truncate">
                 SynPhera<span className="synphera-text-gradient">™</span>
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">
                 Enterprise GenAI Prompt Governance & Lifecycle Management
               </p>
             </div>
