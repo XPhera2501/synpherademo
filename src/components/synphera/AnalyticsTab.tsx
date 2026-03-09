@@ -326,7 +326,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
                 <p className="text-xs text-muted-foreground">{assets.length} assets · {facts.length} ROI facts quantified</p>
               </div>
             </div>
-            <p clas2xl sm:text-sName="text-3xl font-bold font-mono text-primary">${totalValue.toLocaleString()}</p>
+            <p className="text-2xl sm:text-3xl font-bold font-mono text-primary">${totalValue.toLocaleString()}</p>
           </div>
         </CardContent>
       </Card>
