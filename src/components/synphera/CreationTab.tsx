@@ -16,7 +16,7 @@ import { ROIBuilder } from './ROIBuilder';
 import { PromptEditor } from './PromptEditor';
 import { AssignForReviewDialog } from './AssignForReviewDialog';
 import { useAuth } from '@/hooks/useAuth';
-import { Shield, Save, AlertTriangle, MessageSquare, Lock, Info, CheckCircle, XCircle, Users, Ban } from 'lucide-react';
+import { Shield, Save, AlertTriangle, MessageSquare, Lock, Info, CheckCircle, XCircle, Users, Ban, Activity, Cpu, Brain } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ROIEntry {
