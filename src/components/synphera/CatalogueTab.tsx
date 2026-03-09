@@ -115,6 +115,12 @@ export function CatalogueTab({ refreshKey }: CatalogueTabProps) {
                       <p className="text-xs text-muted-foreground line-clamp-1 mt-1">{asset.content}</p>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
+                      {(asset as any).metadata?.taskType && (
+                        <Badge variant="secondary" className="text-[10px] gap-1">
+                          <Activity className="h-2.5 w-2.5" />
+                          {(asset as any).metadata.taskType}
+                        </Badge>
+                      )}
                       {assetFacts.length > 0 && (
                         <Badge variant="secondary" className="text-[10px] gap-1">
                           <TrendingUp className="h-2.5 w-2.5" />
