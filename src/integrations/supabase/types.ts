@@ -177,6 +177,7 @@ export type Database = {
           id: string
           is_locked: boolean
           justification: string | null
+          metadata: Json | null
           parent_id: string | null
           security_status: string
           status: Database["public"]["Enums"]["asset_status"]
@@ -197,6 +198,7 @@ export type Database = {
           id?: string
           is_locked?: boolean
           justification?: string | null
+          metadata?: Json | null
           parent_id?: string | null
           security_status?: string
           status?: Database["public"]["Enums"]["asset_status"]
@@ -217,6 +219,7 @@ export type Database = {
           id?: string
           is_locked?: boolean
           justification?: string | null
+          metadata?: Json | null
           parent_id?: string | null
           security_status?: string
           status?: Database["public"]["Enums"]["asset_status"]

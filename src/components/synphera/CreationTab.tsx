@@ -87,11 +87,10 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     setComplianceValidated(false);
     if (val.length > 20) {
       setValidation(validatePromptBestPractices(val, title));
-      setAnalysis(analyzePrompt(val));
     } else {
       setValidation(null);
-      setAnalysis(null);
     }
+    // Analysis is now triggered by the Validate button
   };
 
   // Phase 1: Compliance Validation
@@ -130,13 +129,20 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     setComplianceResults(results);
     setComplianceValidated(true);
 
+    // Run prompt analyzer on Validate
+    if (content.length > 20) {
+      const promptAnalysis = analyzePrompt(content);
+      setAnalysis(promptAnalysis);
+      toast.success('Prompt analysis complete!');
+    }
+
     const hasErrors = results.some(r => r.status === 'error');
     if (hasErrors) {
       toast.error('Compliance validation failed. See details below.');
     } else if (results.length > 0) {
       toast.success('All compliance checks passed!');
-    } else {
-      toast.warning('Select at least one compliance framework to validate.');
+    } else if (content.length <= 20) {
+      toast.warning('Enter more prompt content before validating.');
     }
   };
 
@@ -166,6 +172,14 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     }
     
     setIsSaving(true);
+    const metadata = analysis ? {
+      taskType: analysis.taskType,
+      determinismScore: analysis.determinismScore,
+      scores: analysis.scores,
+      flags: analysis.flags,
+      routing: analysis.routing,
+    } : null;
+
     const asset = await createAsset({
       title: title.trim(),
       content: content.trim(),
@@ -181,7 +195,8 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       commit_message: commitMessage.trim(),
       is_locked: false,
       tags: [],
-    });
+      metadata,
+    } as any);
     
     if (asset) {
       for (const entry of roiEntries) {
@@ -208,6 +223,14 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     }
 
     setIsSaving(true);
+    const metadata = analysis ? {
+      taskType: analysis.taskType,
+      determinismScore: analysis.determinismScore,
+      scores: analysis.scores,
+      flags: analysis.flags,
+      routing: analysis.routing,
+    } : null;
+
     const asset = await createAsset({
       title: title.trim(),
       content: content.trim(),
@@ -223,7 +246,8 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       commit_message: commitMessage.trim(),
       is_locked: false,
       tags: [],
-    });
+      metadata,
+    } as any);
 
     if (asset) {
       for (const entry of roiEntries) {
@@ -365,7 +389,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
 
             <Button
               onClick={handleComplianceValidate}
-              disabled={!content.trim() || (!complianceEU && !complianceGDPR && !complianceHIPAA)}
+              disabled={!content.trim() || content.length <= 20}
               variant="outline"
               className="gap-2"
             >
