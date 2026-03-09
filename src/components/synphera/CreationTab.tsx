@@ -3,26 +3,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ROICategory, ScanResult } from '@/lib/synphera-types';
 import { runSecurityScan } from '@/lib/security-scanner';
 import { validatePromptBestPractices, analyzePrompt, type ValidationResult, type PromptAnalysis } from '@/lib/prompt-validator';
 import { createAsset, saveROIFact, addAuditLog } from '@/lib/supabase-store';
 import type { DepartmentEnum, AssetStatusEnum } from '@/lib/supabase-store';
 import { ScanResultPanel } from './ScanResultPanel';
-import { ROIBuilder } from './ROIBuilder';
+import { ROIBuilder, type ROIEntry } from './ROIBuilder';
 import { PromptEditor } from './PromptEditor';
 import { AssignForReviewDialog } from './AssignForReviewDialog';
 import { useAuth } from '@/hooks/useAuth';
-import { Shield, Save, AlertTriangle, MessageSquare, Lock, Info, CheckCircle, XCircle, Users, Ban, Activity, Cpu, Brain } from 'lucide-react';
+import { Shield, Save, AlertTriangle, MessageSquare, Lock, Info, CheckCircle, XCircle, Users, Ban, Activity, Cpu, Brain, Download } from 'lucide-react';
 import { toast } from 'sonner';
-
-interface ROIEntry {
-  category: ROICategory;
-  value: number;
-}
 
 interface CreationTabProps {
   onAssetCreated: () => void;
@@ -34,7 +29,6 @@ interface ComplianceResult {
   message?: string;
 }
 
-// PII patterns for GDPR mock validation
 const PII_PATTERNS = [
   /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/i,
   /(\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/,
@@ -45,6 +39,76 @@ const PII_PATTERNS = [
 function detectPII(content: string): boolean {
   return PII_PATTERNS.some(p => p.test(content));
 }
+
+const COMPLIANCE_FRAMEWORKS = [
+  { id: 'eu-ai', label: 'EU AI Act' },
+  { id: 'gdpr', label: 'GDPR' },
+  { id: 'hipaa', label: 'HIPAA' },
+  { id: 'pdpa', label: 'PDPA' },
+];
+
+// Demo prompt
+const DEMO_PROMPT_TITLE = 'Supplier Mix optimization to improve the Net Polymer Margin';
+const DEMO_PROMPT_CONTENT = `Enhanced Polymer Strategic Sourcing Prompt
+
+Context
+
+"I am acting as a Senior Strategic Sourcing Manager specializing in high-performance polymers. Our goal is to maximize the net margin of our molded/extruded end products by optimizing resin selection. We must balance 'Virgin Resin' purchase price against the 'Total Cost of Conversion,' including energy overhead, scrap rates from regrind degradation, and logistical risks."
+
+Action
+
+"Analyze the integrated datasets provided to identify the Optimal Grade-Supplier Mix. Calculate a Polymer Performance Score (PPS) for each supplier ($0-100$) that weights invoice price against machine cycle time, non-conforming scrap, and the financial recovery of quality rebates."
+
+Input Data Requirements (Expected Data)
+
+"Please process the following data tables:
+
+Supplier Master: [Supplier ID, Location, Plant Size, JIT Capability (Binary)].
+
+Contractual Data: [Material Grade, Price/TN, Logistics Cost/TN, Payment Terms, Quality Rebate %].
+
+Production Logs: [Batch ID, Resin Grade, Melt Flow Index (MFI), Cycle Time (sec), Energy KWh/Batch].
+
+Quality & Waste: [Scrap Rate %, Regrind-to-Virgin Ratio, Moisture Content %, Cost of Returns, Disposal Fee/TN].
+
+Market Intelligence: [Global Ethylene/Propylene Index, Freight Lead Times, Regional Humidity Indices]."
+
+Specifics
+
+"Your analysis must:
+
+Identify Efficiency Gaps: Flag suppliers where low $Price/TN$ correlates with high $Energy/Unit$ or extended $Cycle Times$.
+
+Quantify 'Hidden' Logistics Costs: Calculate the cost of 'Pre-Drying' resin for suppliers with production plants in high-humidity regions or long transit times.
+
+Audit Rebate Recovery: Compare production 'Scrap Logs' against 'Contractual Quality Rebates' to identify uncollected credits.
+
+Simulate Market Volatility: Model the impact on margin if the underlying monomer price (Ethylene/Propylene) increases by 10%."
+
+Output Format (Expected Result)
+
+"Provide the final analysis in the following format:
+
+Executive Summary: A 3-sentence overview of the highest margin-leaking supplier.
+
+Supplier Performance Matrix: A table ranking suppliers by Total Cost of Ownership (TCO) rather than price.
+
+Margin Sensitivity Table:
+
+| Variable Change | Impact on Margin (%) | Recommended Action |
+| :--- | :--- | :--- |
+| +5% Regrind Usage | +X.X% | [Action] |
+| -2s Cycle Time | +X.X% | [Action] |
+
+The Optimal Path: A specific recommendation on which grade/supplier to move 20% of the volume to for immediate margin recovery."`;
+
+const DEMO_BENEFITS: ROIEntry[] = [
+  { category: 'Cost Savings', value: 8.5, description: 'Total Conversion Cost (TCC) reduction through optimized supplier mix and reduced energy overhead' },
+  { category: 'Compliance Improvement', value: 3.2, description: 'Delivered Quality Adjusted Price (DQAP) improvement via rebate recovery audit' },
+  { category: 'Operational Velocity Improvement', value: 12, description: 'Regrind Utilization Efficiency (RUE) improvement through optimized regrind-to-virgin ratios' },
+  { category: 'Risk Level Reduction', value: -5, description: 'Reduced exposure to monomer price volatility through diversified supplier strategy' },
+  { category: 'Revenue Increase', value: 2.3, description: 'Margin recovery from optimized grade/supplier volume allocation' },
+];
 
 export function CreationTab({ onAssetCreated }: CreationTabProps) {
   const { user, canEdit, role, profile } = useAuth();
@@ -61,17 +125,13 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [analysis, setAnalysis] = useState<PromptAnalysis | null>(null);
 
-  // Phase 1: Compliance checkboxes
-  const [complianceEU, setComplianceEU] = useState(false);
-  const [complianceGDPR, setComplianceGDPR] = useState(false);
-  const [complianceHIPAA, setComplianceHIPAA] = useState(false);
+  // Compliance
+  const [selectedFrameworks, setSelectedFrameworks] = useState<string[]>([]);
   const [complianceResults, setComplianceResults] = useState<ComplianceResult[]>([]);
   const [complianceValidated, setComplianceValidated] = useState(false);
 
-  // Phase 3: Assign for Review dialog
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
 
-  // Auto-default department to logged-in user's department
   useEffect(() => {
     if (profile?.department) {
       setDepartment(profile.department as DepartmentEnum);
@@ -90,46 +150,55 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     } else {
       setValidation(null);
     }
-    // Analysis is now triggered by the Validate button
   };
 
-  // Phase 1: Compliance Validation
+  // Ingest button: load demo prompt
+  const handleIngest = () => {
+    setTitle(DEMO_PROMPT_TITLE);
+    setContent(DEMO_PROMPT_CONTENT);
+    setRoiEntries([...DEMO_BENEFITS]);
+    toast.success('Demo prompt imported from LLM');
+    if (DEMO_PROMPT_CONTENT.length > 20) {
+      setValidation(validatePromptBestPractices(DEMO_PROMPT_CONTENT, DEMO_PROMPT_TITLE));
+    }
+  };
+
+  // Compliance Validation
   const handleComplianceValidate = () => {
     const results: ComplianceResult[] = [];
     
-    if (complianceEU) {
-      results.push({ framework: 'EU AI Act', status: 'clean', message: 'No issues detected' });
-    }
-    if (complianceGDPR) {
-      const hasPII = detectPII(content);
-      if (hasPII) {
-        results.push({
-          framework: 'GDPR',
-          status: 'error',
-          message: 'PII data detected in the prompt. Remove personal identifiers (emails, phone numbers, SSNs, credit cards) before proceeding.',
-        });
+    for (const fwId of selectedFrameworks) {
+      const fw = COMPLIANCE_FRAMEWORKS.find(f => f.id === fwId);
+      if (!fw) continue;
+
+      if (fwId === 'gdpr') {
+        const hasPII = detectPII(content);
+        results.push(hasPII
+          ? { framework: fw.label, status: 'error', message: 'PII data detected in the prompt. Remove personal identifiers before proceeding.' }
+          : { framework: fw.label, status: 'clean', message: 'No PII detected' }
+        );
+      } else if (fwId === 'hipaa') {
+        const healthKeywords = ['diagnosis', 'prescription', 'patient', 'medical record', 'treatment plan', 'health condition', 'medication'];
+        const hasHealth = healthKeywords.some(kw => content.toLowerCase().includes(kw));
+        results.push(hasHealth
+          ? { framework: fw.label, status: 'error', message: 'Protected health information keywords detected.' }
+          : { framework: fw.label, status: 'clean', message: 'No PHI detected' }
+        );
+      } else if (fwId === 'pdpa') {
+        const pdpaKeywords = ['nric', 'fin number', 'passport number', 'residential address', 'telephone number'];
+        const hasPdpa = pdpaKeywords.some(kw => content.toLowerCase().includes(kw)) || detectPII(content);
+        results.push(hasPdpa
+          ? { framework: fw.label, status: 'error', message: 'Personal data detected under PDPA scope.' }
+          : { framework: fw.label, status: 'clean', message: 'No personal data detected' }
+        );
       } else {
-        results.push({ framework: 'GDPR', status: 'clean', message: 'No PII detected' });
-      }
-    }
-    if (complianceHIPAA) {
-      const healthKeywords = ['diagnosis', 'prescription', 'patient', 'medical record', 'treatment plan', 'health condition', 'medication'];
-      const hasHealth = healthKeywords.some(kw => content.toLowerCase().includes(kw));
-      if (hasHealth) {
-        results.push({
-          framework: 'HIPAA',
-          status: 'error',
-          message: 'Protected health information keywords detected.',
-        });
-      } else {
-        results.push({ framework: 'HIPAA', status: 'clean', message: 'No PHI detected' });
+        results.push({ framework: fw.label, status: 'clean', message: 'No issues detected' });
       }
     }
 
     setComplianceResults(results);
     setComplianceValidated(true);
 
-    // Run prompt analyzer on Validate
     if (content.length > 20) {
       const promptAnalysis = analyzePrompt(content);
       setAnalysis(promptAnalysis);
@@ -163,6 +232,36 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     else if (result.status === 'AMBER') toast.warning('Potential issues detected. Provide justification.');
     else toast.error('Critical issues found. Remediate content.');
   };
+
+  // Build metadata including profile summary
+  const buildMetadata = () => {
+    const benefitSummary = roiEntries.filter(e => e.value !== 0).map(e => ({
+      category: e.category,
+      value: e.value,
+      description: e.description,
+    }));
+
+    return {
+      ...(analysis ? {
+        taskType: analysis.taskType,
+        determinismScore: analysis.determinismScore,
+        scores: analysis.scores,
+        flags: analysis.flags,
+        routing: analysis.routing,
+      } : {}),
+      profileSummary: {
+        company: 'X-Phera',
+        department: profile?.department || 'Not set',
+        taskClassification: analysis?.taskType || 'Pending',
+        determinismScore: analysis?.determinismScore ?? null,
+        stability: validation ? (validation.score >= 70 ? 'High' : validation.score >= 40 ? 'Medium' : 'Low') : 'Pending',
+        llmDependency: analysis ? `${analysis.routing.allocation.LLM}%` : 'Pending',
+        auditReadiness: scanResult ? (scanResult.status === 'GREEN' ? 'Strong' : 'Requires remediation') : 'Pending',
+        compliance: complianceAllClean ? complianceResults.map(r => r.framework).join(', ') + ' — Clean' : complianceValidated ? 'Issues detected' : 'Pending',
+        benefits: benefitSummary,
+      },
+    };
+  };
   
   const handleSave = async () => {
     if (!canSave || isBlocked || !user) return;
@@ -172,13 +271,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     }
     
     setIsSaving(true);
-    const metadata = analysis ? {
-      taskType: analysis.taskType,
-      determinismScore: analysis.determinismScore,
-      scores: analysis.scores,
-      flags: analysis.flags,
-      routing: analysis.routing,
-    } : null;
+    const metadata = buildMetadata();
 
     const asset = await createAsset({
       title: title.trim(),
@@ -200,8 +293,8 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     
     if (asset) {
       for (const entry of roiEntries) {
-        if (entry.value > 0) {
-          await saveROIFact({ asset_id: asset.id, category: entry.category, value: entry.value });
+        if (entry.value !== 0) {
+          await saveROIFact({ asset_id: asset.id, category: entry.category, value: entry.value, description: entry.description || null });
         }
       }
       
@@ -214,7 +307,6 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     setIsSaving(false);
   };
 
-  // Phase 3: Assign for Review
   const handleAssignForReview = async (colleagueId: string, requestType: 'review' | 'validate') => {
     if (!user || !canSave || isBlocked) return;
     if (!commitMessage.trim()) {
@@ -223,13 +315,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     }
 
     setIsSaving(true);
-    const metadata = analysis ? {
-      taskType: analysis.taskType,
-      determinismScore: analysis.determinismScore,
-      scores: analysis.scores,
-      flags: analysis.flags,
-      routing: analysis.routing,
-    } : null;
+    const metadata = buildMetadata();
 
     const asset = await createAsset({
       title: title.trim(),
@@ -251,8 +337,8 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
 
     if (asset) {
       for (const entry of roiEntries) {
-        if (entry.value > 0) {
-          await saveROIFact({ asset_id: asset.id, category: entry.category, value: entry.value });
+        if (entry.value !== 0) {
+          await saveROIFact({ asset_id: asset.id, category: entry.category, value: entry.value, description: entry.description || null });
         }
       }
       await addAuditLog({
@@ -263,7 +349,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
         details: { assigned_to: colleagueId, request_type: requestType },
       });
 
-      toast.success(`Asset sent for ${requestType}! It will appear in the colleague's To-Do list.`);
+      toast.success(`Asset sent for ${requestType}!`);
       resetForm();
       onAssetCreated();
     } else {
@@ -276,13 +362,11 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     setTitle(''); setContent(''); setRoiEntries([]);
     setJustification(''); setCommitMessage(''); setScanResult(null);
     setValidation(null); setAnalysis(null);
-    setComplianceEU(false); setComplianceGDPR(false); setComplianceHIPAA(false);
-    setComplianceResults([]); setComplianceValidated(false);
+    setSelectedFrameworks([]); setComplianceResults([]); setComplianceValidated(false);
   };
 
-  // Phase 2: Profile summary auto-refresh with benefit values
   const profileSummary = useMemo(() => {
-    const benefitSummary = roiEntries.filter(e => e.value > 0).map(e => `${e.category}: ${e.value.toLocaleString()}`).join(', ');
+    const benefitSummary = roiEntries.filter(e => e.value !== 0).map(e => `${e.category}: ${e.value > 0 ? '+' : ''}${e.value}%`).join(', ');
     return [
       { label: 'Company', value: 'X-Phera' },
       { label: 'Department', value: profile?.department || 'Not set' },
@@ -321,6 +405,17 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
             <CardTitle className="text-base font-semibold">Prompt Content</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 px-4 pb-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Prompt Purpose</Label>
+              <Input
+                id="title"
+                placeholder="e.g., Supplier Mix optimization to improve the Net Polymer Margin"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="bg-card"
+              />
+            </div>
+
             <PromptEditor
               value={content}
               onChange={handleContentChange}
@@ -328,24 +423,23 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
               findings={scanResult?.findings}
             />
             
-            <Button
-              onClick={handleScan}
-              disabled={isScanning || !title.trim() || !content.trim()}
-              className="gap-2"
-            >
-              <Shield className="h-4 w-4" />
-              {isScanning ? 'Scanning...' : 'Ingest'}
-            </Button>
-
-            <div className="space-y-2">
-              <Label htmlFor="title">Prompt Title</Label>
-              <Input
-                id="title"
-                placeholder="e.g., Customer Sentiment Analysis Prompt"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="bg-card"
-              />
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleIngest}
+                variant="outline"
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Ingest
+              </Button>
+              <Button
+                onClick={handleScan}
+                disabled={isScanning || !title.trim() || !content.trim()}
+                className="gap-2"
+              >
+                <Shield className="h-4 w-4" />
+                {isScanning ? 'Scanning...' : 'Security Scan'}
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -369,22 +463,55 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
             <CardTitle className="text-base font-semibold">Compliance Validation</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 px-4 pb-4">
-            {/* Compliance Framework Checkboxes */}
-            <div className="grid grid-cols-3 gap-6">
-              {[
-                { id: 'eu-ai', label: 'EU AI Act', checked: complianceEU, onChange: setComplianceEU },
-                { id: 'gdpr', label: 'GDPR', checked: complianceGDPR, onChange: setComplianceGDPR },
-                { id: 'hipaa', label: 'HIPAA', checked: complianceHIPAA, onChange: setComplianceHIPAA },
-              ].map(fw => (
-                <div key={fw.id} className="flex flex-col items-start gap-2">
-                  <Label htmlFor={fw.id} className="text-sm font-medium">{fw.label}</Label>
-                  <Checkbox
-                    id={fw.id}
-                    checked={fw.checked}
-                    onCheckedChange={(v) => { fw.onChange(!!v); setComplianceResults([]); setComplianceValidated(false); }}
-                  />
+            {/* Compliance Framework Dropdown (multi-select via checkboxes in dropdown) */}
+            <div className="space-y-2">
+              <Label className="text-sm">Select Frameworks</Label>
+              <Select
+                value={selectedFrameworks.length > 0 ? selectedFrameworks.join(',') : 'none'}
+                onValueChange={(val) => {
+                  if (val === 'none') return;
+                  const fw = val;
+                  setSelectedFrameworks(prev =>
+                    prev.includes(fw) ? prev.filter(f => f !== fw) : [...prev, fw]
+                  );
+                  setComplianceResults([]);
+                  setComplianceValidated(false);
+                }}
+              >
+                <SelectTrigger className="w-full text-sm">
+                  <SelectValue placeholder="Select compliance frameworks...">
+                    {selectedFrameworks.length === 0
+                      ? 'Select compliance frameworks...'
+                      : selectedFrameworks.map(id => COMPLIANCE_FRAMEWORKS.find(f => f.id === id)?.label).join(', ')}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {COMPLIANCE_FRAMEWORKS.map(fw => (
+                    <SelectItem key={fw.id} value={fw.id}>
+                      <span className="flex items-center gap-2">
+                        {selectedFrameworks.includes(fw.id) && <CheckCircle className="h-3 w-3 text-primary" />}
+                        {fw.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedFrameworks.length > 0 && (
+                <div className="flex gap-1 flex-wrap">
+                  {selectedFrameworks.map(id => {
+                    const fw = COMPLIANCE_FRAMEWORKS.find(f => f.id === id);
+                    return (
+                      <Badge key={id} variant="secondary" className="text-[10px] cursor-pointer" onClick={() => {
+                        setSelectedFrameworks(prev => prev.filter(f => f !== id));
+                        setComplianceResults([]);
+                        setComplianceValidated(false);
+                      }}>
+                        {fw?.label} ✕
+                      </Badge>
+                    );
+                  })}
                 </div>
-              ))}
+              )}
             </div>
 
             <Button
@@ -422,7 +549,6 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
                   </div>
                 ))}
 
-                {/* Overall status icon */}
                 <div className="flex items-center gap-2 pt-1">
                   <Label className="text-sm">Status</Label>
                   {complianceAllClean ? (
@@ -506,13 +632,10 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {/* Task Classification */}
               <div className="rounded-lg border p-3 space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">Task Classification</span>
                 <p className="text-sm font-semibold">{analysis.taskType}</p>
               </div>
-
-              {/* Determinism Score */}
               <div className="rounded-lg border p-3 space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">Determinism Score</span>
                 <p className="text-sm font-semibold">{analysis.determinismScore} / 100</p>
@@ -526,8 +649,6 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
                   />
                 </div>
               </div>
-
-              {/* Risk Flags */}
               <div className="rounded-lg border p-3 space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">Risk & Compliance Signals</span>
                 {Object.entries(analysis.flags).map(([key, val]) => (
@@ -539,7 +660,6 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
               </div>
             </div>
 
-            {/* Scoring Axes */}
             <div className="space-y-2">
               <span className="text-xs font-medium text-muted-foreground">Scoring Axes</span>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -558,7 +678,6 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
               </div>
             </div>
 
-            {/* Execution Routing */}
             <div className="space-y-2">
               <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Cpu className="h-3 w-3" /> Execution Routing Recommendation
@@ -622,7 +741,6 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
         </div>
       </div>
 
-      {/* Assign for Review Dialog */}
       <AssignForReviewDialog
         open={assignDialogOpen}
         onOpenChange={setAssignDialogOpen}
