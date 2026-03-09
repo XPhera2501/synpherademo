@@ -262,16 +262,17 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     return [
       { label: 'Company', value: 'X-Phera' },
       { label: 'Department', value: profile?.department || 'Not set' },
+      { label: 'Task Classification', value: analysis?.taskType || 'Pending analysis' },
+      { label: 'Determinism Score', value: analysis ? `${analysis.determinismScore} / 100` : 'Pending analysis' },
       { label: 'Stability', value: validation ? (validation.score >= 70 ? 'High' : validation.score >= 40 ? 'Medium' : 'Low') : 'Pending validation' },
-      { label: 'Determinism', value: content.length > 100 ? 'Very High Post-Implementation' : 'Pending' },
-      { label: 'LLM Dependency', value: 'Limited to presentation layer' },
+      { label: 'LLM Dependency', value: analysis ? `${analysis.routing.allocation.LLM}%` : 'Pending analysis' },
       { label: 'Audit Readiness', value: scanResult ? (scanResult.status === 'GREEN' ? 'Strong (logging enabled)' : 'Requires remediation') : 'Pending scan' },
       { label: 'Scalability', value: 'Enterprise-grade' },
       { label: 'Code Portability', value: 'Medium' },
       { label: 'Benefits', value: benefitSummary || 'No benefits configured' },
       { label: 'Compliance', value: complianceAllClean ? complianceResults.map(r => r.framework).join(', ') + ' — Clean' : complianceValidated ? 'Issues detected' : 'Pending validation' },
     ];
-  }, [validation, content, scanResult, roiEntries, complianceResults, complianceValidated, complianceAllClean, profile?.department]);
+  }, [validation, analysis, content, scanResult, roiEntries, complianceResults, complianceValidated, complianceAllClean, profile?.department]);
 
   if (!canEdit) {
     return (
