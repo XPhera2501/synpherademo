@@ -389,7 +389,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
 
             <Button
               onClick={handleComplianceValidate}
-              disabled={!content.trim() || (!complianceEU && !complianceGDPR && !complianceHIPAA)}
+              disabled={!content.trim() || content.length <= 20}
               variant="outline"
               className="gap-2"
             >
