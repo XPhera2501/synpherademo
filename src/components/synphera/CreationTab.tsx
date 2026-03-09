@@ -251,7 +251,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   const resetForm = () => {
     setTitle(''); setContent(''); setRoiEntries([]);
     setJustification(''); setCommitMessage(''); setScanResult(null);
-    setValidation(null);
+    setValidation(null); setAnalysis(null);
     setComplianceEU(false); setComplianceGDPR(false); setComplianceHIPAA(false);
     setComplianceResults([]); setComplianceValidated(false);
   };
