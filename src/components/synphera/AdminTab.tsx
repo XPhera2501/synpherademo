@@ -409,8 +409,8 @@ export function AdminTab() {
                             </SelectTrigger>
                             <SelectContent>
                               {ROLES.map(r => (
-                                <SelectItem key={r} value={r} className="capitalize" disabled={r === 'super_admin' && currentRole !== 'super_admin'}>
-                                  {r === 'super_admin' ? '🔴 Super Admin' : r}
+                                <SelectItem key={r} value={r} disabled={r === 'super_admin' && currentRole !== 'super_admin'}>
+                                  {ROLE_LABELS[r]}
                                 </SelectItem>
                               ))}
                             </SelectContent>
