@@ -23,6 +23,13 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 const ROLES: AppRoleEnum[] = ['super_admin', 'admin', 'creator', 'reviewer', 'viewer'];
+const ROLE_LABELS: Record<AppRoleEnum, string> = {
+  super_admin: '🔴 Super Admin',
+  admin: 'Admin',
+  creator: 'Collaborator',
+  reviewer: 'Validator',
+  viewer: 'Viewer',
+};
 const DEPTS: DepartmentEnum[] = ['Operations', 'Legal', 'R&D', 'Marketing', 'Finance', 'HR', 'IT', 'Executive'];
 const ROI_CATEGORIES = ['Time', 'Earlier Reaction', 'Waste Reduction', 'Improved Price Negotiation'];
 
