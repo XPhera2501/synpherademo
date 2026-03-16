@@ -735,11 +735,10 @@ function AssetReviewCard({ asset, profileMap, editingAsset, editContent, commitM
   );
 }
 
-function ReleasedLibrary({ assets, profileMap, canEdit, onFork, onAssetUpdated }: {
+function ReleasedLibrary({ assets, profileMap, canEdit, onAssetUpdated }: {
   assets: DbPromptAsset[];
   profileMap: Map<string, string>;
   canEdit: boolean;
-  onFork: (asset: DbPromptAsset) => void;
   onAssetUpdated: () => void;
 }) {
   const [searchQuery, setSearchQuery] = useState('');
