@@ -27,7 +27,7 @@ export default function Index() {
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>Input</span>
+              <span>Create</span>
             </TabsTrigger>
             <TabsTrigger 
               value="collaboration"
