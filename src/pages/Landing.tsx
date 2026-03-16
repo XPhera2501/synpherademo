@@ -181,9 +181,9 @@ export default function Landing() {
                   color: 'text-status-green',
                 },
                 {
-                  icon: GitFork,
+                  icon: Users,
                   title: 'Versioning & Collaboration',
-                  description: 'Fork, review, and merge prompt assets with full audit trails. Git-like workflows for AI governance.',
+                  description: 'Review and version prompt assets with full audit trails. Structured workflows for AI governance.',
                   color: 'text-primary',
                 },
                 {
