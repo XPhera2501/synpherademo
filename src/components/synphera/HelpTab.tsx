@@ -17,7 +17,7 @@ export function HelpTab() {
             <Shield className="h-8 w-8 text-primary" />
           </div>
         </div>
-        <h1 className="text-3xl font-bold">Welcome to Synphera™ V13</h1>
+        <h1 className="text-3xl font-bold">Welcome to SynPhera™</h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
           Your enterprise-grade GenAI prompt governance portal. Transform shadow AI into 
           governed, auditable, ROI-quantified enterprise assets.
