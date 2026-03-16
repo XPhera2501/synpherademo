@@ -48,7 +48,7 @@ const COMPLIANCE_FRAMEWORKS = [
 ];
 
 // Demo prompt
-const DEMO_PROMPT_TITLE = 'Supplier Mix optimization to improve the Net Polymer Margin';
+const DEMO_PROMPT_TITLE = 'Supplier Mix optimisation to improve the Net Polymer Margin';
 const DEMO_PROMPT_CONTENT = `Enhanced Polymer Strategic Sourcing Prompt
 
 Context
