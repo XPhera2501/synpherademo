@@ -73,28 +73,6 @@ export function CatalogueTab({ refreshKey }: CatalogueTabProps) {
     });
   }, [assets, filterDept, filterStatus, filterCategory, searchQuery]);
 
-  const handleFork = async (asset: DbPromptAsset) => {
-    if (!user) return;
-    const forked = await createAsset({
-      title: `${asset.title} (Fork)`,
-      content: asset.content,
-      version: parseFloat((asset.version + 0.1).toFixed(1)),
-      status: 'draft' as AssetStatusEnum,
-      parent_id: asset.id,
-      assigned_to: null,
-      created_by: user.id,
-      department: asset.department as DepartmentEnum,
-      category: asset.category,
-      tags: asset.tags || [],
-      security_status: 'PENDING',
-      commit_message: `Forked from "${asset.title}" v${asset.version}`,
-      is_locked: false,
-    });
-    if (forked) {
-      toast.success(`Forked "${asset.title}" — new draft created!`);
-      loadData();
-    }
-  };
 
   if (loading) {
     return <div className="flex justify-center py-12"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
