@@ -174,7 +174,7 @@ export function createAsset(asset: Omit<PromptAsset, 'id' | 'createdAt' | 'updat
   addLineageEntry({
     assetId: newAsset.id,
     parentId: asset.parentId,
-    action: asset.parentId ? 'forked' : 'created',
+    action: 'created',
     userId: asset.createdBy,
   });
   

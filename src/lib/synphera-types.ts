@@ -69,7 +69,7 @@ export interface LineageEntry {
   id: string;
   assetId: string;
   parentId: string | null;
-  action: 'created' | 'forked' | 'approved' | 'updated';
+  action: 'created' | 'approved' | 'updated';
   timestamp: Date;
   userId: string;
 }
