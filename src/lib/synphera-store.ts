@@ -129,7 +129,7 @@ export function seedDatabase(): void {
   });
   
   // Create forks
-  const releasedAssets = assets.filter(a => a.status === 'released');
+  const approvedAssets = assets.filter(a => a.status === 'approved');
   for (let i = 0; i < 4; i++) {
     const parent = releasedAssets[Math.floor(Math.random() * releasedAssets.length)];
     const forkId = generateId();
