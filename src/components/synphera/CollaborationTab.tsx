@@ -23,7 +23,7 @@ import { DEPARTMENTS } from '@/lib/synphera-types';
 import type { SecurityStatus, ROICategory } from '@/lib/synphera-types';
 import {
   ChevronDown, ChevronRight, Check, Clock, FileText, Lock, Search, Filter, Send, Users,
-  Inbox, Library, Tag, Building2, ClipboardList, Save, Eye, Edit3, Activity, TrendingUp, Cpu, Brain, AlertTriangle, CheckCircle
+  Inbox, Tag, Building2, ClipboardList, Save, Eye, Edit3, Activity, TrendingUp, Cpu, Brain, AlertTriangle, CheckCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -61,25 +61,18 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
   const [assets, setAssets] = useState<DbPromptAsset[]>([]);
   const [profiles, setProfiles] = useState<DbProfile[]>([]);
   const [facts, setFacts] = useState<DbROIFact[]>([]);
-  const [editingAsset, setEditingAsset] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
-  const [commitMsg, setCommitMsg] = useState('');
-  const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // My Review detail dialog state
+  // Dialog state
   const [selectedAsset, setSelectedAsset] = useState<DbPromptAsset | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
   const [editDialogContent, setEditDialogContent] = useState('');
   const [editTitle, setEditTitle] = useState('');
   const [editCommitMessage, setEditCommitMessage] = useState('');
-  const [editStatus, setEditStatus] = useState<AssetStatusEnum>('draft');
   const [isSaving, setIsSaving] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // My Review filters
+  // Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('date_desc');
 
@@ -96,22 +89,21 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
 
   const profileMap = useMemo(() => new Map(profiles.map(p => [p.id, p.display_name || 'Unknown'])), [profiles]);
 
-  // My Review: assignments to me + dept library
-  const assignedToMe = useMemo(() => {
+  // My Reviews: prompts assigned to me with 'created' or 'in_review' status
+  const myReviews = useMemo(() => {
     if (!user) return [];
-    return assets.filter(a => a.assigned_to === user.id);
+    return assets.filter(a => a.assigned_to === user.id && (a.status === 'created' || a.status === 'in_review'));
   }, [assets, user]);
 
-  const deptLibrary = useMemo(() => {
-    const dept = profile?.department;
-    if (!dept || !user) return [];
-    return assets.filter(a => a.department === dept && a.assigned_to !== user.id);
-  }, [assets, profile?.department, user]);
-
-  // Dept Queue
-  const deptQueue = assets.filter(a =>
-    a.status === 'in_review' && a.department === profile?.department
-  );
+  // Dept Queue: created/in_review assets in my department (not assigned to me)
+  const deptQueue = useMemo(() => {
+    if (!user || !profile?.department) return [];
+    return assets.filter(a =>
+      (a.status === 'created' || a.status === 'in_review') &&
+      a.department === profile.department &&
+      a.assigned_to !== user.id
+    );
+  }, [assets, user, profile?.department]);
 
   // Apply filters
   const applyFilters = (list: DbPromptAsset[]) => {
@@ -121,9 +113,6 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
       filtered = filtered.filter(a =>
         a.title.toLowerCase().includes(q) || a.content.toLowerCase().includes(q)
       );
-    }
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(a => a.status === statusFilter);
     }
     if (dateFilter !== 'all') {
       const now = new Date();
@@ -143,82 +132,77 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
     return filtered;
   };
 
-  const filteredAssignments = useMemo(() => applyFilters(assignedToMe), [assignedToMe, searchQuery, statusFilter, dateFilter, sortBy]);
-  const filteredDeptLibrary = useMemo(() => applyFilters(deptLibrary), [deptLibrary, searchQuery, statusFilter, dateFilter, sortBy]);
+  const filteredReviews = useMemo(() => applyFilters(myReviews), [myReviews, searchQuery, dateFilter, sortBy]);
+  const filteredDeptQueue = useMemo(() => applyFilters(deptQueue), [deptQueue, searchQuery, dateFilter, sortBy]);
 
   const getAssetFacts = (assetId: string) => facts.filter(f => f.asset_id === assetId);
 
-  const openDetail = (asset: DbPromptAsset, editable: boolean) => {
+  const openDetail = (asset: DbPromptAsset) => {
     setSelectedAsset(asset);
     setEditDialogContent(asset.content);
     setEditTitle(asset.title);
-    setEditStatus(asset.status);
     setEditCommitMessage('');
-    setIsEditing(editable);
   };
 
-  const handleSaveEdit = async () => {
+  // Save for Later Completion — sets status to in_review
+  const handleSaveForLater = async () => {
+    if (!selectedAsset || !user) return;
+    setIsSaving(true);
+    const updated = await updateAssetWithVersioning(
+      selectedAsset.id,
+      { content: editDialogContent, title: editTitle, status: 'in_review' as AssetStatusEnum },
+      user.id,
+      editCommitMessage.trim() || 'Saved for later completion',
+      'update',
+    );
+    if (updated) {
+      toast.success('Prompt saved — status set to In Review');
+      setSelectedAsset(null);
+      onAssetUpdated();
+      loadData();
+    } else {
+      toast.error('Failed to save prompt');
+    }
+    setIsSaving(false);
+  };
+
+  // Approve — sets status to approved
+  const handleApprove = async () => {
     if (!selectedAsset || !user) return;
     if (!editCommitMessage.trim()) {
-      toast.error('Please add a commit message');
+      toast.error('Please add a commit message before approving');
       return;
     }
     setIsSaving(true);
     const updated = await updateAssetWithVersioning(
       selectedAsset.id,
-      { content: editDialogContent, title: editTitle, status: editStatus },
-      user.id,
-      editCommitMessage.trim(),
-      editStatus === 'approved' ? 'approve_release' : 'update',
-    );
-    if (updated) {
-      toast.success('Prompt updated successfully');
-      setSelectedAsset(null);
-      loadData();
-    } else {
-      toast.error('Failed to update prompt');
-    }
-    setIsSaving(false);
-  };
-
-  const handleApproveRelease = async (asset: DbPromptAsset) => {
-    if (!commitMsg.trim() || !user) {
-      toast.error('Commit message required for approval');
-      return;
-    }
-    const updated = await updateAssetWithVersioning(
-      asset.id,
       {
-        content: editContent || asset.content,
+        content: editDialogContent,
+        title: editTitle,
         status: 'approved' as AssetStatusEnum,
         assigned_to: null,
         security_status: 'GREEN',
       },
       user.id,
-      commitMsg,
+      editCommitMessage.trim(),
       'approve_release',
     );
     if (updated) {
-      setEditingAsset(null);
-      setEditContent('');
-      setCommitMsg('');
-      toast.success(`"${asset.title}" approved!`);
+      toast.success(`"${editTitle}" approved!`);
+      setSelectedAsset(null);
       onAssetUpdated();
       loadData();
+    } else {
+      toast.error('Failed to approve prompt');
     }
-  };
-
-
-  const handleStartEdit = (asset: DbPromptAsset) => {
-    setEditingAsset(asset.id);
-    setEditContent(asset.content);
+    setIsSaving(false);
   };
 
   if (loading) {
     return <div className="flex justify-center py-12"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
-  const renderRow = (asset: DbPromptAsset, editable: boolean) => {
+  const renderRow = (asset: DbPromptAsset) => {
     const isExpanded = expandedId === asset.id;
     const meta = (asset as any).metadata;
     const assetFacts = getAssetFacts(asset.id);
@@ -230,16 +214,13 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
             <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
             <StatusDot status={asset.status} />
             <span className="text-sm flex-1 min-w-0">
-              {editable && <span className="text-muted-foreground font-medium">EDITABLE: </span>}
               {asset.title}
-              <span className="text-muted-foreground ml-1">
-                (ID:{asset.id.slice(0, 3).toUpperCase()})
+              <span className="text-muted-foreground ml-2 text-xs">
+                ({STATUS_LABELS[asset.status] || asset.status})
               </span>
-              {!editable && (
-                <span className="text-muted-foreground ml-1">
-                  ({STATUS_LABELS[asset.status] || asset.status})
-                </span>
-              )}
+            </span>
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              {profileMap.get(asset.created_by) || 'Unknown'} • {format(new Date(asset.created_at), 'MMM d')}
             </span>
           </div>
         </CollapsibleTrigger>
@@ -248,6 +229,8 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
             <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
               <Badge variant="outline" className="capitalize text-[10px]">{STATUS_LABELS[asset.status] || asset.status}</Badge>
               <span>v{asset.version}</span>
+              <span>•</span>
+              <span>{asset.department}</span>
               <span>•</span>
               <span>By {profileMap.get(asset.created_by) || 'Unknown'}</span>
               <span>•</span>
@@ -266,9 +249,9 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
               )}
             </div>
             <p className="text-xs text-muted-foreground line-clamp-2">{asset.content}</p>
-            <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={() => openDetail(asset, editable)}>
-              {editable ? <Edit3 className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-              {editable ? 'Open & Edit' : 'View Details'}
+            <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={() => openDetail(asset)}>
+              <Edit3 className="h-3 w-3" />
+              Open & Review
             </Button>
           </div>
         </CollapsibleContent>
@@ -276,182 +259,112 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
     );
   };
 
+  const filterBar = (
+    <div className="flex items-center gap-3 flex-wrap">
+      <div className="relative flex-1 min-w-[200px] max-w-xs">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by keyword..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className="pl-9 h-9 bg-card text-sm"
+        />
+      </div>
+      <Select value={dateFilter} onValueChange={setDateFilter}>
+        <SelectTrigger className="w-[150px] h-9 text-sm">
+          <SelectValue placeholder="Date range" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Time</SelectItem>
+          <SelectItem value="7d">Last 7 Days</SelectItem>
+          <SelectItem value="30d">Last 30 Days</SelectItem>
+          <SelectItem value="90d">Last 90 Days</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={sortBy} onValueChange={setSortBy}>
+        <SelectTrigger className="w-[150px] h-9 text-sm">
+          <SelectValue placeholder="Sort by" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="date_desc">Newest First</SelectItem>
+          <SelectItem value="date_asc">Oldest First</SelectItem>
+          <SelectItem value="title_asc">Title A-Z</SelectItem>
+          <SelectItem value="title_desc">Title Z-A</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="my-review" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 bg-card border border-border h-10">
+        <TabsList className="grid w-full grid-cols-2 bg-card border border-border h-10">
           <TabsTrigger value="my-review" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <ClipboardList className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">My Review</span>
-            <span className="sm:hidden">Review</span>
-            {assignedToMe.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px] bg-primary/20 text-primary">{assignedToMe.length}</Badge>}
+            <Inbox className="h-3.5 w-3.5" />
+            My Reviews
+            {myReviews.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px] bg-primary/20 text-primary">{myReviews.length}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="dept-queue" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Building2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Dept Queue</span>
-            <span className="sm:hidden">Dept</span>
+            Department Queue
             {deptQueue.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{deptQueue.length}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="approved" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <Check className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Approved</span>
-            <span className="sm:hidden">Done</span>
           </TabsTrigger>
         </TabsList>
 
-        {/* My Review — Assignments + Dept Library with detail dialog */}
-        <TabsContent value="my-review" className="space-y-6">
-          {/* Filters */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-[200px] max-w-xs">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by keyword..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="pl-9 h-9 bg-card text-sm"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[150px] h-9 text-sm">
-                <Filter className="h-3 w-3 mr-1 text-muted-foreground" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="created">Created</SelectItem>
-                <SelectItem value="in_review">In Review</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-[150px] h-9 text-sm">
-                <SelectValue placeholder="Date range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="7d">Last 7 Days</SelectItem>
-                <SelectItem value="30d">Last 30 Days</SelectItem>
-                <SelectItem value="90d">Last 90 Days</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[150px] h-9 text-sm">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="date_desc">Newest First</SelectItem>
-                <SelectItem value="date_asc">Oldest First</SelectItem>
-                <SelectItem value="title_asc">Title A-Z</SelectItem>
-                <SelectItem value="title_desc">Title Z-A</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Section 1: Assignments to Me */}
-          <div>
-            <h2 className="text-lg font-semibold flex items-center gap-2 mb-3">
-              <ClipboardList className="h-5 w-5" />
-              Assignments to Me (Editable)
-            </h2>
-            <Card className="shadow-none overflow-hidden">
-              {filteredAssignments.length === 0 ? (
-                <CardContent className="py-8 text-center">
-                  <p className="text-sm text-muted-foreground">No prompts assigned to you.</p>
-                </CardContent>
-              ) : (
-                filteredAssignments.map(a => renderRow(a, true))
-              )}
-            </Card>
-          </div>
-
-          <hr className="border-border" />
-
-          {/* Section 2: Department Library */}
-          <div>
-            <h2 className="text-lg font-semibold flex items-center gap-2 mb-3">
-              <Building2 className="h-5 w-5" />
-              {profile?.department || 'Department'} Dept Library (View Only)
-            </h2>
-            <Card className="shadow-none overflow-hidden">
-              {filteredDeptLibrary.length === 0 ? (
-                <CardContent className="py-8 text-center">
-                  <p className="text-sm text-muted-foreground">No prompts in your department library.</p>
-                </CardContent>
-              ) : (
-                filteredDeptLibrary.map(a => renderRow(a, false))
-              )}
-            </Card>
-          </div>
+        {/* My Reviews — Prompts assigned to me with created/in_review status */}
+        <TabsContent value="my-review" className="space-y-4">
+          {filterBar}
+          <Card className="shadow-none overflow-hidden">
+            {filteredReviews.length === 0 ? (
+              <CardContent className="py-12 text-center">
+                <Inbox className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">No prompts pending your review.</p>
+                <p className="text-xs text-muted-foreground mt-1">Prompts assigned to you with 'Created' or 'In Review' status will appear here.</p>
+              </CardContent>
+            ) : (
+              filteredReviews.map(a => renderRow(a))
+            )}
+          </Card>
         </TabsContent>
 
         {/* Department Queue */}
         <TabsContent value="dept-queue" className="space-y-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
             <Building2 className="h-4 w-4" />
-            Showing in-review assets for <Badge variant="outline">{profile?.department || 'your department'}</Badge>
+            Showing pending prompts for <Badge variant="outline">{profile?.department || 'your department'}</Badge>
           </div>
-          {deptQueue.length === 0 ? (
+          {filterBar}
+          {filteredDeptQueue.length === 0 ? (
             <Card className="border-dashed">
-              <CardContent className="py-8 text-center">
-                <p className="text-muted-foreground">No assets pending review in your department.</p>
+              <CardContent className="py-12 text-center">
+                <Building2 className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">No pending prompts in your department queue.</p>
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-3">
-              {deptQueue.map(asset => (
-                <AssetReviewCard
-                  key={asset.id}
-                  asset={asset}
-                  profileMap={profileMap}
-                  editingAsset={editingAsset}
-                  editContent={editContent}
-                  commitMsg={commitMsg}
-                  isReviewer={isReviewer}
-                  canEdit={canEdit}
-                  onStartEdit={handleStartEdit}
-                  onEditContentChange={setEditContent}
-                  onCommitMsgChange={setCommitMsg}
-                  onApproveRelease={handleApproveRelease}
-                  onAssetUpdated={() => { onAssetUpdated(); loadData(); }}
-                />
-              ))}
-            </div>
+            <Card className="shadow-none overflow-hidden">
+              {filteredDeptQueue.map(a => renderRow(a))}
+            </Card>
           )}
-        </TabsContent>
-
-        {/* Approved Library */}
-        <TabsContent value="approved" className="space-y-4">
-          <ReleasedLibrary
-            assets={assets.filter(a => a.status === 'approved')}
-            profileMap={profileMap}
-            canEdit={canEdit}
-            onAssetUpdated={() => { onAssetUpdated(); loadData(); }}
-          />
         </TabsContent>
       </Tabs>
 
-      {/* Detail / Edit Dialog */}
+      {/* Review / Edit Dialog */}
       <Dialog open={!!selectedAsset} onOpenChange={(open) => { if (!open) setSelectedAsset(null); }}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           {selectedAsset && (
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-base">
-                  {isEditing ? <Edit3 className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  {isEditing ? 'Edit Prompt' : 'View Prompt'}
+                  <Edit3 className="h-4 w-4" />
+                  Review Prompt
                 </DialogTitle>
               </DialogHeader>
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Title</Label>
-                  {isEditing ? (
-                    <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} className="bg-card text-sm" />
-                  ) : (
-                    <p className="text-sm font-medium">{selectedAsset.title}</p>
-                  )}
+                  <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} className="bg-card text-sm" />
                 </div>
 
                 <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
@@ -467,29 +380,8 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
 
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Prompt Content</Label>
-                  {isEditing ? (
-                    <Textarea value={editDialogContent} onChange={e => setEditDialogContent(e.target.value)} className="bg-card text-sm font-mono min-h-[200px]" />
-                  ) : (
-                    <pre className="whitespace-pre-wrap text-sm font-mono bg-muted/30 p-3 rounded-lg text-foreground">{selectedAsset.content}</pre>
-                  )}
+                  <Textarea value={editDialogContent} onChange={e => setEditDialogContent(e.target.value)} className="bg-card text-sm font-mono min-h-[200px]" />
                 </div>
-
-                {isEditing && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium">Update Status</Label>
-                    <Select value={editStatus} onValueChange={v => setEditStatus(v as AssetStatusEnum)}>
-                      <SelectTrigger className="w-[200px] text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="created">Created</SelectItem>
-                        <SelectItem value="in_review">In Review</SelectItem>
-                        <SelectItem value="approved">Approved</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
 
                 {/* Benefits */}
                 {(() => {
@@ -613,226 +505,47 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
                   </div>
                 )}
 
-                {isEditing && (
-                  <div className="space-y-3 border-t border-border pt-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium">Commit Message</Label>
-                      <Input
-                        placeholder="Describe your changes..."
-                        value={editCommitMessage}
-                        onChange={e => setEditCommitMessage(e.target.value)}
-                        className="bg-card text-sm"
-                      />
-                    </div>
+                {/* Comments */}
+                <CommentThread promptId={selectedAsset.id} />
+
+                {/* Commit Message */}
+                <div className="space-y-3 border-t border-border pt-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Commit Message</Label>
+                    <Input
+                      placeholder="Describe your changes..."
+                      value={editCommitMessage}
+                      onChange={e => setEditCommitMessage(e.target.value)}
+                      className="bg-card text-sm"
+                    />
                   </div>
-                )}
+                </div>
               </div>
 
-              {isEditing && (
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setSelectedAsset(null)}>Cancel</Button>
-                  <Button
-                    onClick={handleSaveEdit}
-                    disabled={isSaving || !editCommitMessage.trim()}
-                    className="gap-2"
-                  >
-                    <Save className="h-4 w-4" />
-                    {isSaving ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                </DialogFooter>
-              )}
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button variant="outline" onClick={() => setSelectedAsset(null)}>Cancel</Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleSaveForLater}
+                  disabled={isSaving}
+                  className="gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  {isSaving ? 'Saving...' : 'Save for Later Completion'}
+                </Button>
+                <Button
+                  onClick={handleApprove}
+                  disabled={isSaving || !editCommitMessage.trim()}
+                  className="gap-2"
+                >
+                  <Check className="h-4 w-4" />
+                  {isSaving ? 'Approving...' : 'Approve'}
+                </Button>
+              </DialogFooter>
             </>
           )}
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-// =============== Sub-Components ===============
-
-function AssetReviewCard({ asset, profileMap, editingAsset, editContent, commitMsg, isReviewer, canEdit, onStartEdit, onEditContentChange, onCommitMsgChange, onApproveRelease, onAssetUpdated }: {
-  asset: DbPromptAsset;
-  profileMap: Map<string, string>;
-  editingAsset: string | null;
-  editContent: string;
-  commitMsg: string;
-  isReviewer: boolean;
-  canEdit: boolean;
-  onStartEdit: (asset: DbPromptAsset) => void;
-  onEditContentChange: (val: string) => void;
-  onCommitMsgChange: (val: string) => void;
-  onApproveRelease: (asset: DbPromptAsset) => void;
-  onAssetUpdated: () => void;
-}) {
-  return (
-    <Collapsible>
-      <Card>
-        <CollapsibleTrigger className="w-full">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div className="flex items-center gap-3 min-w-0">
-              <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <div className="text-left min-w-0">
-                <CardTitle className="text-base truncate">{asset.title}</CardTitle>
-                <CardDescription className="text-xs">
-                  v{asset.version} • {asset.department} • by {profileMap.get(asset.created_by) || 'Unknown'} • {format(new Date(asset.created_at), 'MMM d, yyyy')}
-                  {asset.commit_message && ` • "${asset.commit_message}"`}
-                </CardDescription>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <SecurityBadge status={asset.security_status as SecurityStatus} size="sm" />
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardHeader>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <CardContent className="space-y-4 pt-0">
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Review and refine content:</p>
-              <Textarea
-                value={editingAsset === asset.id ? editContent : asset.content}
-                onChange={(e) => {
-                  if (editingAsset !== asset.id) onStartEdit(asset);
-                  onEditContentChange(e.target.value);
-                }}
-                onFocus={() => onStartEdit(asset)}
-                className="min-h-[120px] font-mono text-sm"
-                readOnly={!isReviewer}
-              />
-            </div>
-            <CommentThread promptId={asset.id} />
-            {isReviewer && (
-              <>
-                <div className="space-y-2">
-                  <Label className="text-xs">Commit message for approval</Label>
-                  <Input
-                    placeholder="e.g., Reviewed and approved with minor edits"
-                    value={commitMsg}
-                    onChange={(e) => onCommitMsgChange(e.target.value)}
-                    className="text-sm bg-card"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={() => onApproveRelease(asset)} className="gap-2" disabled={!commitMsg.trim()}>
-                    <Check className="h-4 w-4" />
-                    Approve & Release
-                  </Button>
-                </div>
-              </>
-            )}
-            <VersionHistoryPanel
-              assetId={asset.id}
-              currentVersion={asset.version}
-              isLocked={asset.is_locked}
-              onRollback={onAssetUpdated}
-              onToggleLock={onAssetUpdated}
-            />
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
-  );
-}
-
-function ReleasedLibrary({ assets, profileMap, canEdit, onAssetUpdated }: {
-  assets: DbPromptAsset[];
-  profileMap: Map<string, string>;
-  canEdit: boolean;
-  onAssetUpdated: () => void;
-}) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
-
-  const filtered = searchQuery
-    ? assets.filter(a =>
-        a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.tags?.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : assets;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Check className="h-5 w-5 text-status-green" />
-          <h2 className="text-lg font-semibold">Approved Library</h2>
-          <Badge variant="secondary">{assets.length} assets</Badge>
-        </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search approved..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="pl-9 h-9 bg-card text-sm"
-          />
-        </div>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map(asset => (
-          <Card key={asset.id} className="group hover:border-primary/30 transition-colors">
-            <CardHeader className="pb-2">
-              <div className="flex items-start justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    {asset.is_locked && <Lock className="h-3 w-3 text-status-amber flex-shrink-0" />}
-                    <CardTitle className="text-sm line-clamp-1">{asset.title}</CardTitle>
-                  </div>
-                  <CardDescription className="text-xs">
-                    v{asset.version} • {asset.department}
-                    {asset.category && ` • ${asset.category}`}
-                  </CardDescription>
-                </div>
-                <SecurityBadge status="GREEN" size="sm" showLabel={false} />
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0 space-y-3">
-              <p className="text-xs text-muted-foreground line-clamp-2">{asset.content}</p>
-              {asset.tags && asset.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {asset.tags.slice(0, 3).map(t => (
-                    <Badge key={t} variant="secondary" className="text-[10px] h-4 px-1">{t}</Badge>
-                  ))}
-                </div>
-              )}
-              {asset.commit_message && (
-                <p className="text-[10px] text-muted-foreground/60 italic truncate">💬 {asset.commit_message}</p>
-              )}
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm"
-                  onClick={() => setExpandedHistory(expandedHistory === asset.id ? null : asset.id)}
-                  className="gap-1 text-xs opacity-70 group-hover:opacity-100">
-                  <Clock className="h-3 w-3" />History
-                </Button>
-              </div>
-              {expandedHistory === asset.id && (
-                <div className="animate-fade-in-up space-y-3">
-                  <VersionHistoryPanel
-                    assetId={asset.id}
-                    currentVersion={asset.version}
-                    isLocked={asset.is_locked}
-                    onRollback={onAssetUpdated}
-                    onToggleLock={onAssetUpdated}
-                  />
-                  <CommentThread promptId={asset.id} />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      {filtered.length === 0 && (
-        <Card className="border-dashed">
-          <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">
-              {searchQuery ? `No assets match "${searchQuery}"` : 'No approved assets yet.'}
-            </p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
