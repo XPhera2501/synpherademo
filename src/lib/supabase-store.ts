@@ -65,7 +65,7 @@ export async function createAsset(asset: TablesInsert<'prompt_assets'>): Promise
     await addLineageEntry({
       asset_id: data.id,
       parent_id: asset.parent_id ?? null,
-      action: asset.parent_id ? 'forked' : 'created',
+      action: 'created',
       user_id: asset.created_by,
     });
     await addVersionSnapshot({
