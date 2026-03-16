@@ -182,11 +182,6 @@ export function CatalogueTab({ refreshKey }: CatalogueTabProps) {
                   <p className="text-xs text-muted-foreground line-clamp-1 mt-1">{asset.content}</p>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
-                  {canEdit && (
-                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => handleFork(asset)}>
-                      <GitFork className="h-3 w-3" />Fork
-                    </Button>
-                  )}
                   <Button variant="ghost" size="sm" className="h-7 text-xs gap-1"
                     onClick={() => setExpandedHistory(expandedHistory === asset.id ? null : asset.id)}>
                     <Clock className="h-3 w-3" />History

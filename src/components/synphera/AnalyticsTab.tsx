@@ -139,7 +139,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground font-mono">{assets.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">{forkedCount} forked • {lockedCount} locked</p>
+            <p className="text-xs text-muted-foreground mt-1">{lockedCount} locked</p>
           </CardContent>
         </Card>
         <Card className="metric-card">

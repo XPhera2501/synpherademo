@@ -22,7 +22,7 @@ import {
 import { DEPARTMENTS } from '@/lib/synphera-types';
 import type { SecurityStatus, ROICategory } from '@/lib/synphera-types';
 import {
-  ChevronDown, ChevronRight, Check, GitFork, Clock, FileText, Lock, Search, Filter, Send, Users,
+  ChevronDown, ChevronRight, Check, Clock, FileText, Lock, Search, Filter, Send, Users,
   Inbox, Library, Tag, Building2, ClipboardList, Save, Eye, Edit3, Activity, TrendingUp, Cpu, Brain, AlertTriangle, CheckCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
