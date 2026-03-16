@@ -427,7 +427,6 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
             assets={assets.filter(a => a.status === 'approved')}
             profileMap={profileMap}
             canEdit={canEdit}
-            onFork={handleFork}
             onAssetUpdated={() => { onAssetUpdated(); loadData(); }}
           />
         </TabsContent>
