@@ -198,7 +198,7 @@ export function HelpTab() {
       </Card>
 
       <div className="text-center text-sm text-muted-foreground space-y-2 pb-8">
-        <p>Synphera™ supports GDPR, CCPA, and ISO 27001 compliance requirements.</p>
+        <p>SynPhera™ supports GDPR, CCPA, and ISO 27001 compliance requirements.</p>
         <p className="flex items-center justify-center gap-2">
           <Shield className="h-4 w-4 text-primary" />
           Enterprise GenAI Governance • Version 13.0

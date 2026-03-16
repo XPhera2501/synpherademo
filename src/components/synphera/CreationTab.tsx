@@ -402,44 +402,35 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
         {/* Top-Left: Prompt Content */}
         <Card className="shadow-none">
           <CardHeader className="pb-2 px-4 pt-4">
-            <CardTitle className="text-base font-semibold">Prompt Content</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold">Prompt Content</CardTitle>
+              <Button
+                onClick={handleIngest}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Ingest from LLM
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4 px-4 pb-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Prompt Purpose</Label>
-              <Input
-                id="title"
-                placeholder="e.g., Supplier Mix optimization to improve the Net Polymer Margin"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="bg-card"
-              />
-            </div>
-
             <PromptEditor
               value={content}
               onChange={handleContentChange}
               label="Content"
-              findings={scanResult?.findings}
             />
-            
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={handleIngest}
-                variant="outline"
-                className="gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Ingest
-              </Button>
-              <Button
-                onClick={handleScan}
-                disabled={isScanning || !title.trim() || !content.trim()}
-                className="gap-2"
-              >
-                <Shield className="h-4 w-4" />
-                {isScanning ? 'Scanning...' : 'Security Scan'}
-              </Button>
+
+            <div className="space-y-2">
+              <Label htmlFor="title">Prompt Purpose</Label>
+              <Input
+                id="title"
+                placeholder="e.g., Supplier Mix optimisation to improve the Net Polymer Margin"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="bg-card"
+              />
             </div>
           </CardContent>
         </Card>
