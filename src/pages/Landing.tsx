@@ -19,7 +19,7 @@ import {
   Settings,
   ArrowRight,
   Lock,
-  GitFork,
+  
   TrendingUp,
   ChevronDown,
   Zap,
