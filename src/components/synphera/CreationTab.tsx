@@ -327,7 +327,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       created_by: user.id,
       department,
       category: null,
-      security_status: scanResult!.status,
+      security_status: scanResult?.status || 'GREEN',
       justification: justification || null,
       commit_message: commitMessage.trim(),
       is_locked: false,
