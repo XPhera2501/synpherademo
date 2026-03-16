@@ -142,8 +142,8 @@ export function HelpTab() {
             {[
               { step: 1, icon: FileText, title: 'Create Your Asset', desc: 'Enter title, prompt content, department, category, tags, and optional ROI values' },
               { step: 2, icon: Shield, title: 'Run Security Scan', desc: 'Mandatory PII and compliance check before saving' },
-              { step: 3, icon: Users, title: 'Submit for Review', desc: 'Assign to a peer reviewer for approval and release' },
-              { step: 4, icon: GitFork, title: 'Fork & Iterate', desc: 'Create branches from released assets for department-specific variations' },
+              { step: 3, icon: Users, title: 'Submit for Review', desc: 'Assign to a validator for approval' },
+              { step: 4, icon: GitFork, title: 'Fork & Iterate', desc: 'Create branches from approved assets for department-specific variations' },
               { step: 5, icon: BarChart3, title: 'Track Value', desc: 'Monitor ROI metrics and lineage in the Analytics dashboard' },
             ].map(({ step, icon: Icon, title, desc }) => (
               <div key={step} className="flex gap-4">
