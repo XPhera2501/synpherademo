@@ -16,9 +16,6 @@ export function Header() {
           <div className="flex items-center gap-3 sm:gap-5 min-w-0">
             <div className="relative flex-shrink-0">
               <img src={synpheraLogo} alt="SynPhera logo" className="h-12 w-12 sm:h-20 sm:w-20 rounded-xl object-contain synphera-glow" />
-              <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-synphera-magenta text-[11px] font-bold text-primary-foreground">
-                13
-              </div>
             </div>
             <div className="min-w-0">
               <h1 className="font-heading text-xl sm:text-3xl font-bold tracking-tight text-foreground truncate">
