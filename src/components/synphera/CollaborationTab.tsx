@@ -190,7 +190,7 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
       asset.id,
       {
         content: editContent || asset.content,
-        status: 'released' as AssetStatusEnum,
+        status: 'approved' as AssetStatusEnum,
         assigned_to: null,
         security_status: 'GREEN',
       },
