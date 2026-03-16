@@ -18,7 +18,7 @@ const DEPT_COLORS: Record<Department, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: '#F59E0B', in_review: '#8B5CF6', approved: '#3B82F6', released: '#10B981',
+  draft: '#F59E0B', created: '#3B82F6', in_review: '#8B5CF6', approved: '#10B981',
 };
 
 export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
