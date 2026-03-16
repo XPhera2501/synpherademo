@@ -444,10 +444,10 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
           )}
         </TabsContent>
 
-        {/* Released Library */}
-        <TabsContent value="released" className="space-y-4">
+        {/* Approved Library */}
+        <TabsContent value="approved" className="space-y-4">
           <ReleasedLibrary
-            assets={assets.filter(a => a.status === 'released')}
+            assets={assets.filter(a => a.status === 'approved')}
             profileMap={profileMap}
             canEdit={canEdit}
             onFork={handleFork}
