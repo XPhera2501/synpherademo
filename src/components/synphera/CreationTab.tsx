@@ -274,7 +274,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   const handleSave = async () => {
     if (!canSave || isBlocked || !user) return;
     if (!commitMessage.trim()) {
-      toast.error('Message to reviewer is required');
+      toast.error('Message to validator is required');
       return;
     }
     
@@ -318,7 +318,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   const handleAssignForReview = async (colleagueId: string, requestType: 'review' | 'validate') => {
     if (!user || !canSave || isBlocked) return;
     if (!commitMessage.trim()) {
-      toast.error('Message to reviewer is required');
+      toast.error('Message to validator is required');
       return;
     }
 
@@ -685,12 +685,12 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
         </Card>
       )}
 
-      {/* Message to reviewer + action buttons */}
+      {/* Message to validator + action buttons */}
       <div className="space-y-3">
         <div className="space-y-2">
           <Label htmlFor="commit" className="flex items-center gap-2">
             <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-            Message to Reviewer <span className="text-destructive">*</span>
+            Message to Validator <span className="text-destructive">*</span>
           </Label>
           <Input
             id="commit"

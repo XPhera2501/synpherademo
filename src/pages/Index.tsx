@@ -7,7 +7,7 @@ import { CatalogueTab } from '@/components/synphera/CatalogueTab';
 import { AnalyticsTab } from '@/components/synphera/AnalyticsTab';
 import { AdminTab } from '@/components/synphera/AdminTab';
 import { useAuth } from '@/hooks/useAuth';
-import { FileText, Users, BarChart3, Library, Settings } from 'lucide-react';
+import { FileText, CheckSquare, Library, BarChart3, Settings } from 'lucide-react';
 
 export default function Index() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -30,26 +30,25 @@ export default function Index() {
               <span>Create</span>
             </TabsTrigger>
             <TabsTrigger 
-              value="collaboration"
+              value="validate"
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
-              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>Collaborate</span>
+              <CheckSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>Validate</span>
             </TabsTrigger>
             <TabsTrigger 
               value="catalogue"
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               <Library className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>Validate</span>
+              <span>Catalogue</span>
             </TabsTrigger>
             <TabsTrigger 
               value="dashboard"
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>Visualise</span>
-              
+              <span>Dashboard</span>
             </TabsTrigger>
             {isAdmin && (
               <TabsTrigger 
@@ -66,7 +65,7 @@ export default function Index() {
             <CreationTab onAssetCreated={handleRefresh} />
           </TabsContent>
           
-          <TabsContent value="collaboration" className="animate-fade-in-up">
+          <TabsContent value="validate" className="animate-fade-in-up">
             <CollaborationTab refreshKey={refreshKey} onAssetUpdated={handleRefresh} />
           </TabsContent>
           

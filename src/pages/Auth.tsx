@@ -275,8 +275,8 @@ export default function Auth() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="viewer">Viewer</SelectItem>
-                        <SelectItem value="reviewer">Reviewer</SelectItem>
-                        <SelectItem value="creator">Creator</SelectItem>
+                        <SelectItem value="reviewer">Validator</SelectItem>
+                        <SelectItem value="creator">Collaborator</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-[10px] text-muted-foreground">Role assignment is subject to admin approval.</p>

@@ -23,6 +23,13 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 const ROLES: AppRoleEnum[] = ['super_admin', 'admin', 'creator', 'reviewer', 'viewer'];
+const ROLE_LABELS: Record<AppRoleEnum, string> = {
+  super_admin: '🔴 Super Admin',
+  admin: 'Admin',
+  creator: 'Collaborator',
+  reviewer: 'Validator',
+  viewer: 'Viewer',
+};
 const DEPTS: DepartmentEnum[] = ['Operations', 'Legal', 'R&D', 'Marketing', 'Finance', 'HR', 'IT', 'Executive'];
 const ROI_CATEGORIES = ['Time', 'Earlier Reaction', 'Waste Reduction', 'Improved Price Negotiation'];
 
@@ -402,8 +409,8 @@ export function AdminTab() {
                             </SelectTrigger>
                             <SelectContent>
                               {ROLES.map(r => (
-                                <SelectItem key={r} value={r} className="capitalize" disabled={r === 'super_admin' && currentRole !== 'super_admin'}>
-                                  {r === 'super_admin' ? '🔴 Super Admin' : r}
+                                <SelectItem key={r} value={r} disabled={r === 'super_admin' && currentRole !== 'super_admin'}>
+                                  {ROLE_LABELS[r]}
                                 </SelectItem>
                               ))}
                             </SelectContent>
