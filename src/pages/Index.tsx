@@ -49,7 +49,7 @@ export default function Index() {
             >
               <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>Visualise</span>
-              <span>Dashboard</span>
+              
             </TabsTrigger>
             {isAdmin && (
               <TabsTrigger 
