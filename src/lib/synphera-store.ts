@@ -77,9 +77,9 @@ export function seedDatabase(): void {
       department: sample.dept,
       createdAt,
       updatedAt: createdAt,
-      securityStatus: isReleased ? 'GREEN' : 'PENDING',
+      securityStatus: isApproved ? 'GREEN' : 'PENDING',
       commitMessage: 'Initial creation',
-      isLocked: isReleased && Math.random() > 0.6,
+      isLocked: isApproved && Math.random() > 0.6,
     };
     
     assets.push(asset);
