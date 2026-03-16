@@ -783,7 +783,7 @@ function ReleasedLibrary({ assets, profileMap, canEdit, onFork, onAssetUpdated }
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Check className="h-5 w-5 text-status-green" />
-          <h2 className="text-lg font-semibold">Released Library</h2>
+          <h2 className="text-lg font-semibold">Approved Library</h2>
           <Badge variant="secondary">{assets.length} assets</Badge>
         </div>
         <div className="relative w-full sm:w-64">
