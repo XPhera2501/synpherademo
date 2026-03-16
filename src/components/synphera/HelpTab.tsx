@@ -178,8 +178,8 @@ export function HelpTab() {
               <tbody>
                 {[
                   { role: 'Admin', create: true, edit: true, review: true, admin: true },
-                  { role: 'Creator', create: true, edit: true, review: false, admin: false },
-                  { role: 'Reviewer', create: false, edit: false, review: true, admin: false },
+                  { role: 'Collaborator', create: true, edit: true, review: false, admin: false },
+                  { role: 'Validator', create: false, edit: false, review: true, admin: false },
                   { role: 'Viewer', create: false, edit: false, review: false, admin: false },
                 ].map(r => (
                   <tr key={r.role} className="border-b border-border/50">

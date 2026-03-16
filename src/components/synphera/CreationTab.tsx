@@ -274,7 +274,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   const handleSave = async () => {
     if (!canSave || isBlocked || !user) return;
     if (!commitMessage.trim()) {
-      toast.error('Message to reviewer is required');
+      toast.error('Message to validator is required');
       return;
     }
     
