@@ -14,7 +14,7 @@ import {
 } from '@/lib/supabase-store';
 import { DEPARTMENTS } from '@/lib/synphera-types';
 import type { SecurityStatus } from '@/lib/synphera-types';
-import { Search, Filter, GitFork, Clock, Lock, Tag, Send, Library } from 'lucide-react';
+import { Search, Filter, Clock, Lock, Tag, Send, Library } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
