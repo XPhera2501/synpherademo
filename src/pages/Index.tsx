@@ -65,7 +65,7 @@ export default function Index() {
             <CreationTab onAssetCreated={handleRefresh} />
           </TabsContent>
           
-          <TabsContent value="collaboration" className="animate-fade-in-up">
+          <TabsContent value="validate" className="animate-fade-in-up">
             <CollaborationTab refreshKey={refreshKey} onAssetUpdated={handleRefresh} />
           </TabsContent>
           
