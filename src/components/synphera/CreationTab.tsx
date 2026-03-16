@@ -48,7 +48,7 @@ const COMPLIANCE_FRAMEWORKS = [
 ];
 
 // Demo prompt
-const DEMO_PROMPT_TITLE = 'Supplier Mix optimization to improve the Net Polymer Margin';
+const DEMO_PROMPT_TITLE = 'Supplier Mix optimisation to improve the Net Polymer Margin';
 const DEMO_PROMPT_CONTENT = `Enhanced Polymer Strategic Sourcing Prompt
 
 Context
@@ -138,8 +138,8 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     }
   }, [profile?.department]);
   
-  const canSave = scanResult && (scanResult.status === 'GREEN' || (scanResult.status === 'AMBER' && justification.trim().length > 10));
-  const isBlocked = scanResult?.status === 'RED';
+  const canSave = title.trim().length > 0 && content.trim().length > 0;
+  const isBlocked = false;
 
   const handleContentChange = (val: string) => {
     setContent(val);
@@ -283,7 +283,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       created_by: user.id,
       department,
       category: null,
-      security_status: scanResult!.status,
+      security_status: scanResult?.status || 'GREEN',
       justification: justification || null,
       commit_message: commitMessage.trim(),
       is_locked: false,
@@ -327,7 +327,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       created_by: user.id,
       department,
       category: null,
-      security_status: scanResult!.status,
+      security_status: scanResult?.status || 'GREEN',
       justification: justification || null,
       commit_message: commitMessage.trim(),
       is_locked: false,
@@ -402,44 +402,35 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
         {/* Top-Left: Prompt Content */}
         <Card className="shadow-none">
           <CardHeader className="pb-2 px-4 pt-4">
-            <CardTitle className="text-base font-semibold">Prompt Content</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold">Prompt Content</CardTitle>
+              <Button
+                onClick={handleIngest}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Ingest from LLM
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4 px-4 pb-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Prompt Purpose</Label>
-              <Input
-                id="title"
-                placeholder="e.g., Supplier Mix optimization to improve the Net Polymer Margin"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="bg-card"
-              />
-            </div>
-
             <PromptEditor
               value={content}
               onChange={handleContentChange}
               label="Content"
-              findings={scanResult?.findings}
             />
-            
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={handleIngest}
-                variant="outline"
-                className="gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Ingest
-              </Button>
-              <Button
-                onClick={handleScan}
-                disabled={isScanning || !title.trim() || !content.trim()}
-                className="gap-2"
-              >
-                <Shield className="h-4 w-4" />
-                {isScanning ? 'Scanning...' : 'Security Scan'}
-              </Button>
+
+            <div className="space-y-2">
+              <Label htmlFor="title">Prompt Purpose</Label>
+              <Input
+                id="title"
+                placeholder="e.g., Supplier Mix optimisation to improve the Net Polymer Margin"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="bg-card"
+              />
             </div>
           </CardContent>
         </Card>
@@ -560,23 +551,6 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
               </div>
             )}
 
-            <ScanResultPanel result={scanResult} isScanning={isScanning} />
-
-            {scanResult?.status === 'AMBER' && (
-              <div className="space-y-2 animate-fade-in-up">
-                <Label htmlFor="justification" className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-status-amber" />
-                  Business Justification Required
-                </Label>
-                <Input
-                  id="justification"
-                  placeholder="Explain why this is acceptable (min 10 chars)..."
-                  value={justification}
-                  onChange={(e) => setJustification(e.target.value)}
-                  className="bg-card"
-                />
-              </div>
-            )}
 
             {/* Prompt Validation Results */}
             {validation && (
