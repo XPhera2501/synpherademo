@@ -22,7 +22,7 @@ import {
 import { DEPARTMENTS } from '@/lib/synphera-types';
 import type { SecurityStatus, ROICategory } from '@/lib/synphera-types';
 import {
-  ChevronDown, ChevronRight, Check, GitFork, Clock, FileText, Lock, Search, Filter, Send, Users,
+  ChevronDown, ChevronRight, Check, Clock, FileText, Lock, Search, Filter, Send, Users,
   Inbox, Library, Tag, Building2, ClipboardList, Save, Eye, Edit3, Activity, TrendingUp, Cpu, Brain, AlertTriangle, CheckCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -208,29 +208,6 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
     }
   };
 
-  const handleFork = async (asset: DbPromptAsset) => {
-    if (!user) return;
-    const forked = await createAsset({
-      title: `${asset.title} (Fork)`,
-      content: asset.content,
-      version: parseFloat((asset.version + 0.1).toFixed(1)),
-      status: 'draft' as AssetStatusEnum,
-      parent_id: asset.id,
-      assigned_to: null,
-      created_by: user.id,
-      department: asset.department as DepartmentEnum,
-      category: asset.category,
-      tags: asset.tags || [],
-      security_status: 'PENDING',
-      commit_message: `Forked from "${asset.title}" v${asset.version}`,
-      is_locked: false,
-    });
-    if (forked) {
-      toast.success(`Forked "${asset.title}" — new draft created!`);
-      onAssetUpdated();
-      loadData();
-    }
-  };
 
   const handleStartEdit = (asset: DbPromptAsset) => {
     setEditingAsset(asset.id);
@@ -450,7 +427,6 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
             assets={assets.filter(a => a.status === 'approved')}
             profileMap={profileMap}
             canEdit={canEdit}
-            onFork={handleFork}
             onAssetUpdated={() => { onAssetUpdated(); loadData(); }}
           />
         </TabsContent>
@@ -759,11 +735,10 @@ function AssetReviewCard({ asset, profileMap, editingAsset, editContent, commitM
   );
 }
 
-function ReleasedLibrary({ assets, profileMap, canEdit, onFork, onAssetUpdated }: {
+function ReleasedLibrary({ assets, profileMap, canEdit, onAssetUpdated }: {
   assets: DbPromptAsset[];
   profileMap: Map<string, string>;
   canEdit: boolean;
-  onFork: (asset: DbPromptAsset) => void;
   onAssetUpdated: () => void;
 }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -827,12 +802,6 @@ function ReleasedLibrary({ assets, profileMap, canEdit, onFork, onAssetUpdated }
                 <p className="text-[10px] text-muted-foreground/60 italic truncate">💬 {asset.commit_message}</p>
               )}
               <div className="flex gap-2">
-                {canEdit && (
-                  <Button variant="outline" size="sm" onClick={() => onFork(asset)}
-                    className="flex-1 gap-2 opacity-70 group-hover:opacity-100 transition-opacity">
-                    <GitFork className="h-3 w-3" />Fork
-                  </Button>
-                )}
                 <Button variant="ghost" size="sm"
                   onClick={() => setExpandedHistory(expandedHistory === asset.id ? null : asset.id)}
                   className="gap-1 text-xs opacity-70 group-hover:opacity-100">

@@ -19,7 +19,7 @@ import {
   Settings,
   ArrowRight,
   Lock,
-  GitFork,
+  
   TrendingUp,
   ChevronDown,
   Zap,
@@ -121,8 +121,8 @@ export default function Landing() {
                 {
                   value: 'collaboration',
                   icon: Users,
-                  title: 'Step 2: Collaboration & Review',
-                  content: 'Fork, version, and comment on prompt assets. Role-based review workflows ensure quality and compliance before release. Full version history with diff tracking.',
+                  title: 'Step 2: Validation & Review',
+                  content: 'Version and comment on prompt assets. Role-based review workflows ensure quality and compliance before approval. Full version history with diff tracking.',
                 },
                 {
                   value: 'analytics',
@@ -181,9 +181,9 @@ export default function Landing() {
                   color: 'text-status-green',
                 },
                 {
-                  icon: GitFork,
+                  icon: Users,
                   title: 'Versioning & Collaboration',
-                  description: 'Fork, review, and merge prompt assets with full audit trails. Git-like workflows for AI governance.',
+                  description: 'Review and version prompt assets with full audit trails. Structured workflows for AI governance.',
                   color: 'text-primary',
                 },
                 {

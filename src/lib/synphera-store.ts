@@ -128,60 +128,6 @@ export function seedDatabase(): void {
     }
   });
   
-  // Create forks
-  const approvedAssets = assets.filter(a => a.status === 'approved');
-  for (let i = 0; i < 4; i++) {
-    const parent = approvedAssets[Math.floor(Math.random() * approvedAssets.length)];
-    const forkId = generateId();
-    const forkDate = new Date(parent.createdAt.getTime() + 86400000 * Math.floor(Math.random() * 30));
-    const creator = REVIEWERS[Math.floor(Math.random() * REVIEWERS.length)];
-    
-    const fork: PromptAsset = {
-      id: forkId,
-      title: `${parent.title} (Fork)`,
-      content: parent.content + "\n\n// Modified for specific use case",
-      version: 1.1,
-      status: Math.random() > 0.5 ? 'approved' : 'draft',
-      parentId: parent.id,
-      assignedTo: null,
-      createdBy: creator.id,
-      department: DEPARTMENTS[Math.floor(Math.random() * DEPARTMENTS.length)],
-      createdAt: forkDate,
-      updatedAt: forkDate,
-      securityStatus: 'GREEN',
-      commitMessage: `Forked from "${parent.title}"`,
-      isLocked: false,
-    };
-    
-    assets.push(fork);
-    
-    versions.push({
-      id: generateId(),
-      assetId: forkId,
-      version: 1.1,
-      content: fork.content,
-      title: fork.title,
-      commitMessage: fork.commitMessage!,
-      userId: creator.id,
-      timestamp: forkDate,
-    });
-    
-    roiFacts.push({
-      id: generateId(),
-      assetId: forkId,
-      category: ROI_CATEGORIES[Math.floor(Math.random() * ROI_CATEGORIES.length)],
-      value: Math.round((Math.random() * 30000 + 10000) / 100) * 100,
-    });
-    
-    lineage.push({
-      id: generateId(),
-      assetId: forkId,
-      parentId: parent.id,
-      action: 'forked',
-      timestamp: forkDate,
-      userId: creator.id,
-    });
-  }
   
   localStorage.setItem(STORAGE_KEYS.assets, JSON.stringify(assets));
   localStorage.setItem(STORAGE_KEYS.roiFacts, JSON.stringify(roiFacts));
