@@ -1,7 +1,7 @@
 // Synphera V13 Enhanced - Type Definitions
 
 export type SecurityStatus = 'GREEN' | 'AMBER' | 'RED' | 'PENDING';
-export type AssetStatus = 'draft' | 'pending_review' | 'released';
+export type AssetStatus = 'draft' | 'created' | 'in_review' | 'approved';
 export type ROICategory = 'Cost Savings' | 'Compliance Improvement' | 'Operational Velocity Improvement' | 'Risk Level Reduction' | 'Revenue Increase';
 export type Department = 'Operations' | 'Legal' | 'R&D' | 'Marketing' | 'Finance' | 'HR' | 'IT' | 'Executive';
 
