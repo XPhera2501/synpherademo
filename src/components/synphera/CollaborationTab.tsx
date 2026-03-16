@@ -202,7 +202,7 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
       setEditingAsset(null);
       setEditContent('');
       setCommitMsg('');
-      toast.success(`"${asset.title}" approved and released!`);
+      toast.success(`"${asset.title}" approved!`);
       onAssetUpdated();
       loadData();
     }
