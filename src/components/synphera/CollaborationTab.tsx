@@ -35,16 +35,16 @@ interface CollaborationTabProps {
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'hsl(var(--status-red))',
-  in_review: 'hsl(var(--status-amber))',
+  created: 'hsl(var(--status-amber))',
+  in_review: 'hsl(var(--synphera-purple))',
   approved: 'hsl(var(--status-green))',
-  released: 'hsl(var(--synphera-purple))',
 };
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
-  in_review: 'Pending Review',
+  created: 'Created',
+  in_review: 'In Review',
   approved: 'Approved',
-  released: 'Released',
 };
 
 function StatusDot({ status }: { status: string }) {
