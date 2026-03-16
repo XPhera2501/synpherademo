@@ -141,7 +141,7 @@ export function seedDatabase(): void {
       title: `${parent.title} (Fork)`,
       content: parent.content + "\n\n// Modified for specific use case",
       version: 1.1,
-      status: Math.random() > 0.5 ? 'released' : 'draft',
+      status: Math.random() > 0.5 ? 'approved' : 'draft',
       parentId: parent.id,
       assignedTo: null,
       createdBy: creator.id,
