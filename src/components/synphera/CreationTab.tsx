@@ -138,8 +138,8 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     }
   }, [profile?.department]);
   
-  const canSave = scanResult && (scanResult.status === 'GREEN' || (scanResult.status === 'AMBER' && justification.trim().length > 10));
-  const isBlocked = scanResult?.status === 'RED';
+  const canSave = title.trim().length > 0 && content.trim().length > 0;
+  const isBlocked = false;
 
   const handleContentChange = (val: string) => {
     setContent(val);
