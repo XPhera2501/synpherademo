@@ -507,9 +507,9 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="created">Created</SelectItem>
                         <SelectItem value="in_review">In Review</SelectItem>
                         <SelectItem value="approved">Approved</SelectItem>
-                        <SelectItem value="released">Released</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
