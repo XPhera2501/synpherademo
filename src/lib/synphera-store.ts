@@ -116,12 +116,12 @@ export function seedDatabase(): void {
       userId: creator.id,
     });
     
-    if (isReleased) {
+    if (isApproved) {
       lineage.push({
         id: generateId(),
         assetId,
         parentId: null,
-        action: 'released',
+        action: 'approved',
         timestamp: new Date(createdAt.getTime() + 86400000 * Math.floor(Math.random() * 7)),
         userId: creator.id,
       });
