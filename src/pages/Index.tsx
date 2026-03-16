@@ -7,7 +7,7 @@ import { CatalogueTab } from '@/components/synphera/CatalogueTab';
 import { AnalyticsTab } from '@/components/synphera/AnalyticsTab';
 import { AdminTab } from '@/components/synphera/AdminTab';
 import { useAuth } from '@/hooks/useAuth';
-import { FileText, Users, BarChart3, Library, Settings } from 'lucide-react';
+import { FileText, CheckSquare, Library, BarChart3, Settings } from 'lucide-react';
 
 export default function Index() {
   const [refreshKey, setRefreshKey] = useState(0);
