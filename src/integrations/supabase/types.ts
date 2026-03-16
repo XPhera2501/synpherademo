@@ -459,7 +459,7 @@ export type Database = {
     }
     Enums: {
       app_role: "super_admin" | "admin" | "creator" | "reviewer" | "viewer"
-      asset_status: "draft" | "in_review" | "approved" | "released"
+      asset_status: "draft" | "in_review" | "approved" | "released" | "created"
       department:
         | "Operations"
         | "Legal"
@@ -597,7 +597,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["super_admin", "admin", "creator", "reviewer", "viewer"],
-      asset_status: ["draft", "in_review", "approved", "released"],
+      asset_status: ["draft", "in_review", "approved", "released", "created"],
       department: [
         "Operations",
         "Legal",
