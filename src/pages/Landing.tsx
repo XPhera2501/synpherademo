@@ -121,8 +121,8 @@ export default function Landing() {
                 {
                   value: 'collaboration',
                   icon: Users,
-                  title: 'Step 2: Collaboration & Review',
-                  content: 'Fork, version, and comment on prompt assets. Role-based review workflows ensure quality and compliance before release. Full version history with diff tracking.',
+                  title: 'Step 2: Validation & Review',
+                  content: 'Version and comment on prompt assets. Role-based review workflows ensure quality and compliance before approval. Full version history with diff tracking.',
                 },
                 {
                   value: 'analytics',
