@@ -803,12 +803,6 @@ function ReleasedLibrary({ assets, profileMap, canEdit, onFork, onAssetUpdated }
                 <p className="text-[10px] text-muted-foreground/60 italic truncate">💬 {asset.commit_message}</p>
               )}
               <div className="flex gap-2">
-                {canEdit && (
-                  <Button variant="outline" size="sm" onClick={() => onFork(asset)}
-                    className="flex-1 gap-2 opacity-70 group-hover:opacity-100 transition-opacity">
-                    <GitFork className="h-3 w-3" />Fork
-                  </Button>
-                )}
                 <Button variant="ghost" size="sm"
                   onClick={() => setExpandedHistory(expandedHistory === asset.id ? null : asset.id)}
                   className="gap-1 text-xs opacity-70 group-hover:opacity-100">
