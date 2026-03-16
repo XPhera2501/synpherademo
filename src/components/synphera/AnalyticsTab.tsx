@@ -107,7 +107,6 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
 
   const maxDeptTotal = Math.max(...deptTotals.map(d => d.weighted), 1);
   const lockedCount = assets.filter(a => a.is_locked).length;
-  const forkedCount = assets.filter(a => a.parent_id).length;
 
   // Department bar chart data
   const deptBarData = useMemo(() => 
