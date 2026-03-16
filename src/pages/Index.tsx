@@ -27,28 +27,29 @@ export default function Index() {
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>Input</span>
+              <span>Create</span>
             </TabsTrigger>
             <TabsTrigger 
               value="collaboration"
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>Validate</span>
+              <span>Collaborate</span>
             </TabsTrigger>
             <TabsTrigger 
               value="catalogue"
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               <Library className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>Catalogue</span>
+              <span>Validate</span>
             </TabsTrigger>
             <TabsTrigger 
               value="dashboard"
               className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>Dashboard</span>
+              <span>Visualise</span>
+              
             </TabsTrigger>
             {isAdmin && (
               <TabsTrigger 
