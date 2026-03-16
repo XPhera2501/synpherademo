@@ -315,10 +315,10 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
             <span className="sm:hidden">Dept</span>
             {deptQueue.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{deptQueue.length}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="released" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+          <TabsTrigger value="approved" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Check className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Released</span>
-            <span className="sm:hidden">Live</span>
+            <span className="hidden sm:inline">Approved</span>
+            <span className="sm:hidden">Done</span>
           </TabsTrigger>
         </TabsList>
 
