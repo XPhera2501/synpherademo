@@ -192,6 +192,13 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
           ? { framework: fw.label, status: 'error', message: 'Personal data detected under PDPA scope.' }
           : { framework: fw.label, status: 'clean', message: 'No personal data detected' }
         );
+      } else if (fwId === 'enterprise') {
+        const policyKeywords = ['bypass approval', 'skip review', 'ignore compliance', 'override policy'];
+        const violates = policyKeywords.some(kw => content.toLowerCase().includes(kw));
+        results.push(violates
+          ? { framework: fw.label, status: 'error', message: 'Content violates internal enterprise usage policies.' }
+          : { framework: fw.label, status: 'clean', message: 'Compliant with enterprise policies' }
+        );
       } else {
         results.push({ framework: fw.label, status: 'clean', message: 'No issues detected' });
       }
