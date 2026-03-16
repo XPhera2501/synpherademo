@@ -131,7 +131,7 @@ export function seedDatabase(): void {
   // Create forks
   const approvedAssets = assets.filter(a => a.status === 'approved');
   for (let i = 0; i < 4; i++) {
-    const parent = releasedAssets[Math.floor(Math.random() * releasedAssets.length)];
+    const parent = approvedAssets[Math.floor(Math.random() * approvedAssets.length)];
     const forkId = generateId();
     const forkDate = new Date(parent.createdAt.getTime() + 86400000 * Math.floor(Math.random() * 30));
     const creator = REVIEWERS[Math.floor(Math.random() * REVIEWERS.length)];
