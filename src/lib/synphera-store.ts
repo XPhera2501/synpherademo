@@ -61,8 +61,8 @@ export function seedDatabase(): void {
   SAMPLE_PROMPTS.forEach((sample, index) => {
     const assetId = generateId();
     const createdAt = randomDate(10);
-    const isReleased = Math.random() > 0.3;
-    const isPendingReview = !isReleased && Math.random() > 0.5;
+    const isApproved = Math.random() > 0.3;
+    const isCreated = !isApproved && Math.random() > 0.5;
     const creator = REVIEWERS[Math.floor(Math.random() * REVIEWERS.length)];
     
     const asset: PromptAsset = {
