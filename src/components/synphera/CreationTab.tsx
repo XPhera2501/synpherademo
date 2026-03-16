@@ -45,6 +45,7 @@ const COMPLIANCE_FRAMEWORKS = [
   { id: 'gdpr', label: 'GDPR' },
   { id: 'hipaa', label: 'HIPAA' },
   { id: 'pdpa', label: 'PDPA' },
+  { id: 'enterprise', label: 'Enterprise Policy' },
 ];
 
 // Demo prompt
