@@ -35,16 +35,16 @@ interface CollaborationTabProps {
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'hsl(var(--status-red))',
-  in_review: 'hsl(var(--status-amber))',
+  created: 'hsl(var(--status-amber))',
+  in_review: 'hsl(var(--synphera-purple))',
   approved: 'hsl(var(--status-green))',
-  released: 'hsl(var(--synphera-purple))',
 };
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
-  in_review: 'Pending Review',
+  created: 'Created',
+  in_review: 'In Review',
   approved: 'Approved',
-  released: 'Released',
 };
 
 function StatusDot({ status }: { status: string }) {
@@ -190,7 +190,7 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
       asset.id,
       {
         content: editContent || asset.content,
-        status: 'released' as AssetStatusEnum,
+        status: 'approved' as AssetStatusEnum,
         assigned_to: null,
         security_status: 'GREEN',
       },
@@ -202,7 +202,7 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
       setEditingAsset(null);
       setEditContent('');
       setCommitMsg('');
-      toast.success(`"${asset.title}" approved and released!`);
+      toast.success(`"${asset.title}" approved!`);
       onAssetUpdated();
       loadData();
     }
@@ -315,10 +315,10 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
             <span className="sm:hidden">Dept</span>
             {deptQueue.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{deptQueue.length}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="released" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+          <TabsTrigger value="approved" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Check className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Released</span>
-            <span className="sm:hidden">Live</span>
+            <span className="hidden sm:inline">Approved</span>
+            <span className="sm:hidden">Done</span>
           </TabsTrigger>
         </TabsList>
 
@@ -343,9 +343,9 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="created">Created</SelectItem>
                 <SelectItem value="in_review">In Review</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="released">Released</SelectItem>
               </SelectContent>
             </Select>
             <Select value={dateFilter} onValueChange={setDateFilter}>
@@ -444,10 +444,10 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
           )}
         </TabsContent>
 
-        {/* Released Library */}
-        <TabsContent value="released" className="space-y-4">
+        {/* Approved Library */}
+        <TabsContent value="approved" className="space-y-4">
           <ReleasedLibrary
-            assets={assets.filter(a => a.status === 'released')}
+            assets={assets.filter(a => a.status === 'approved')}
             profileMap={profileMap}
             canEdit={canEdit}
             onFork={handleFork}
@@ -507,9 +507,9 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="created">Created</SelectItem>
                         <SelectItem value="in_review">In Review</SelectItem>
                         <SelectItem value="approved">Approved</SelectItem>
-                        <SelectItem value="released">Released</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -783,13 +783,13 @@ function ReleasedLibrary({ assets, profileMap, canEdit, onFork, onAssetUpdated }
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Check className="h-5 w-5 text-status-green" />
-          <h2 className="text-lg font-semibold">Released Library</h2>
+          <h2 className="text-lg font-semibold">Approved Library</h2>
           <Badge variant="secondary">{assets.length} assets</Badge>
         </div>
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search released..."
+            placeholder="Search approved..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="pl-9 h-9 bg-card text-sm"
@@ -859,7 +859,7 @@ function ReleasedLibrary({ assets, profileMap, canEdit, onFork, onAssetUpdated }
         <Card className="border-dashed">
           <CardContent className="py-8 text-center">
             <p className="text-muted-foreground">
-              {searchQuery ? `No assets match "${searchQuery}"` : 'No released assets yet.'}
+              {searchQuery ? `No assets match "${searchQuery}"` : 'No approved assets yet.'}
             </p>
           </CardContent>
         </Card>

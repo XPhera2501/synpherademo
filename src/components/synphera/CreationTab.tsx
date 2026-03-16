@@ -329,7 +329,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       title: title.trim(),
       content: content.trim(),
       version: 1.0,
-      status: 'in_review' as AssetStatusEnum,
+      status: 'created' as AssetStatusEnum,
       parent_id: null,
       assigned_to: colleagueId,
       created_by: user.id,

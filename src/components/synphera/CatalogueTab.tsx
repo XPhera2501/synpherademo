@@ -136,9 +136,9 @@ export function CatalogueTab({ refreshKey }: CatalogueTabProps) {
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="draft">Draft</SelectItem>
+            <SelectItem value="created">Created</SelectItem>
             <SelectItem value="in_review">In Review</SelectItem>
             <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="released">Released</SelectItem>
           </SelectContent>
         </Select>
         {categories.length > 0 && (

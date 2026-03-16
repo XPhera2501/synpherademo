@@ -61,8 +61,8 @@ export function seedDatabase(): void {
   SAMPLE_PROMPTS.forEach((sample, index) => {
     const assetId = generateId();
     const createdAt = randomDate(10);
-    const isReleased = Math.random() > 0.3;
-    const isPendingReview = !isReleased && Math.random() > 0.5;
+    const isApproved = Math.random() > 0.3;
+    const isCreated = !isApproved && Math.random() > 0.5;
     const creator = REVIEWERS[Math.floor(Math.random() * REVIEWERS.length)];
     
     const asset: PromptAsset = {
@@ -70,16 +70,16 @@ export function seedDatabase(): void {
       title: sample.title,
       content: sample.content,
       version: 1.0,
-      status: isReleased ? 'released' : isPendingReview ? 'pending_review' : 'draft',
+      status: isApproved ? 'approved' : isCreated ? 'created' : 'draft',
       parentId: null,
-      assignedTo: isPendingReview ? REVIEWERS[Math.floor(Math.random() * REVIEWERS.length)].id : null,
+      assignedTo: isCreated ? REVIEWERS[Math.floor(Math.random() * REVIEWERS.length)].id : null,
       createdBy: creator.id,
       department: sample.dept,
       createdAt,
       updatedAt: createdAt,
-      securityStatus: isReleased ? 'GREEN' : 'PENDING',
+      securityStatus: isApproved ? 'GREEN' : 'PENDING',
       commitMessage: 'Initial creation',
-      isLocked: isReleased && Math.random() > 0.6,
+      isLocked: isApproved && Math.random() > 0.6,
     };
     
     assets.push(asset);
@@ -116,12 +116,12 @@ export function seedDatabase(): void {
       userId: creator.id,
     });
     
-    if (isReleased) {
+    if (isApproved) {
       lineage.push({
         id: generateId(),
         assetId,
         parentId: null,
-        action: 'released',
+        action: 'approved',
         timestamp: new Date(createdAt.getTime() + 86400000 * Math.floor(Math.random() * 7)),
         userId: creator.id,
       });
@@ -129,9 +129,9 @@ export function seedDatabase(): void {
   });
   
   // Create forks
-  const releasedAssets = assets.filter(a => a.status === 'released');
+  const approvedAssets = assets.filter(a => a.status === 'approved');
   for (let i = 0; i < 4; i++) {
-    const parent = releasedAssets[Math.floor(Math.random() * releasedAssets.length)];
+    const parent = approvedAssets[Math.floor(Math.random() * approvedAssets.length)];
     const forkId = generateId();
     const forkDate = new Date(parent.createdAt.getTime() + 86400000 * Math.floor(Math.random() * 30));
     const creator = REVIEWERS[Math.floor(Math.random() * REVIEWERS.length)];
@@ -141,7 +141,7 @@ export function seedDatabase(): void {
       title: `${parent.title} (Fork)`,
       content: parent.content + "\n\n// Modified for specific use case",
       version: 1.1,
-      status: Math.random() > 0.5 ? 'released' : 'draft',
+      status: Math.random() > 0.5 ? 'approved' : 'draft',
       parentId: parent.id,
       assignedTo: null,
       createdBy: creator.id,

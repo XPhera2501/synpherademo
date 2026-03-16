@@ -18,7 +18,7 @@ const DEPT_COLORS: Record<Department, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: '#F59E0B', in_review: '#8B5CF6', approved: '#3B82F6', released: '#10B981',
+  draft: '#F59E0B', created: '#3B82F6', in_review: '#8B5CF6', approved: '#10B981',
 };
 
 export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
@@ -83,13 +83,13 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
   }, [assets]);
 
   const statusData = useMemo(() => {
-    const counts: Record<string, number> = { draft: 0, in_review: 0, approved: 0, released: 0 };
+    const counts: Record<string, number> = { draft: 0, created: 0, in_review: 0, approved: 0 };
     assets.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
     return [
       { name: 'Draft', value: counts.draft, fill: STATUS_COLORS.draft },
+      { name: 'Created', value: counts.created, fill: STATUS_COLORS.created },
       { name: 'In Review', value: counts.in_review, fill: STATUS_COLORS.in_review },
       { name: 'Approved', value: counts.approved, fill: STATUS_COLORS.approved },
-      { name: 'Released', value: counts.released, fill: STATUS_COLORS.released },
     ].filter(d => d.value > 0);
   }, [assets]);
 

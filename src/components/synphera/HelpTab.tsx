@@ -114,8 +114,8 @@ export function HelpTab() {
               { icon: BookTemplate, title: 'Template Library', desc: 'Use pre-built frameworks: Zero-Shot, Few-Shot, Chain-of-Thought, Role-Play, and Structured Output.' },
               { icon: Tag, title: 'Tags & Categories', desc: 'Organize assets with tags and categories for faceted search and discovery.' },
               { icon: Search, title: 'Full-Text Search', desc: 'Search across titles, content, and tags with department and status filters.' },
-              { icon: GitFork, title: 'Fork & Branch', desc: 'Create variations of released assets while maintaining full lineage tracing.' },
-              { icon: Send, title: 'Submit for Review', desc: 'Assign assets to reviewers for approval before releasing to the library.' },
+              { icon: GitFork, title: 'Fork & Branch', desc: 'Create variations of approved assets while maintaining full lineage tracing.' },
+              { icon: Send, title: 'Submit for Review', desc: 'Assign assets to validators for approval.' },
               { icon: Building2, title: 'Department Queues', desc: 'View and manage review queues filtered by your department.' },
               { icon: MessageSquare, title: 'Comments & Review', desc: 'Add review comments on any asset for collaborative refinement.' },
               { icon: Download, title: 'Compliance Exports', desc: 'Admins can export audit logs and access reports as CSV for compliance.' },
@@ -142,8 +142,8 @@ export function HelpTab() {
             {[
               { step: 1, icon: FileText, title: 'Create Your Asset', desc: 'Enter title, prompt content, department, category, tags, and optional ROI values' },
               { step: 2, icon: Shield, title: 'Run Security Scan', desc: 'Mandatory PII and compliance check before saving' },
-              { step: 3, icon: Users, title: 'Submit for Review', desc: 'Assign to a peer reviewer for approval and release' },
-              { step: 4, icon: GitFork, title: 'Fork & Iterate', desc: 'Create branches from released assets for department-specific variations' },
+              { step: 3, icon: Users, title: 'Submit for Review', desc: 'Assign to a validator for approval' },
+              { step: 4, icon: GitFork, title: 'Fork & Iterate', desc: 'Create branches from approved assets for department-specific variations' },
               { step: 5, icon: BarChart3, title: 'Track Value', desc: 'Monitor ROI metrics and lineage in the Analytics dashboard' },
             ].map(({ step, icon: Icon, title, desc }) => (
               <div key={step} className="flex gap-4">
