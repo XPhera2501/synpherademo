@@ -551,23 +551,6 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
               </div>
             )}
 
-            <ScanResultPanel result={scanResult} isScanning={isScanning} />
-
-            {scanResult?.status === 'AMBER' && (
-              <div className="space-y-2 animate-fade-in-up">
-                <Label htmlFor="justification" className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-status-amber" />
-                  Business Justification Required
-                </Label>
-                <Input
-                  id="justification"
-                  placeholder="Explain why this is acceptable (min 10 chars)..."
-                  value={justification}
-                  onChange={(e) => setJustification(e.target.value)}
-                  className="bg-card"
-                />
-              </div>
-            )}
 
             {/* Prompt Validation Results */}
             {validation && (
