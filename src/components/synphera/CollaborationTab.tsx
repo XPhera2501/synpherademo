@@ -343,9 +343,9 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="created">Created</SelectItem>
                 <SelectItem value="in_review">In Review</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="released">Released</SelectItem>
               </SelectContent>
             </Select>
             <Select value={dateFilter} onValueChange={setDateFilter}>
