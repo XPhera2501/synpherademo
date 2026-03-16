@@ -83,13 +83,13 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
   }, [assets]);
 
   const statusData = useMemo(() => {
-    const counts: Record<string, number> = { draft: 0, in_review: 0, approved: 0, released: 0 };
+    const counts: Record<string, number> = { draft: 0, created: 0, in_review: 0, approved: 0 };
     assets.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
     return [
       { name: 'Draft', value: counts.draft, fill: STATUS_COLORS.draft },
+      { name: 'Created', value: counts.created, fill: STATUS_COLORS.created },
       { name: 'In Review', value: counts.in_review, fill: STATUS_COLORS.in_review },
       { name: 'Approved', value: counts.approved, fill: STATUS_COLORS.approved },
-      { name: 'Released', value: counts.released, fill: STATUS_COLORS.released },
     ].filter(d => d.value > 0);
   }, [assets]);
 

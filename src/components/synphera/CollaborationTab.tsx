@@ -859,7 +859,7 @@ function ReleasedLibrary({ assets, profileMap, canEdit, onFork, onAssetUpdated }
         <Card className="border-dashed">
           <CardContent className="py-8 text-center">
             <p className="text-muted-foreground">
-              {searchQuery ? `No assets match "${searchQuery}"` : 'No released assets yet.'}
+              {searchQuery ? `No assets match "${searchQuery}"` : 'No approved assets yet.'}
             </p>
           </CardContent>
         </Card>

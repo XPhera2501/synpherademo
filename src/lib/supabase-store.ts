@@ -126,7 +126,7 @@ export async function updateAssetWithVersioning(
   await addLineageEntry({
     asset_id: id,
     parent_id: asset.parent_id,
-    action: auditAction === 'approve_release' ? 'released' : 'updated',
+    action: auditAction === 'approve_release' ? 'approved' : 'updated',
     user_id: userId,
   });
 
