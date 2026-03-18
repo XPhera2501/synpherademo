@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { getAuditLogs, getProfiles, suspendUser, addAuditLog } from '@/lib/supabase-store';
-import type { AppRoleEnum, DepartmentEnum } from '@/lib/supabase-store';
+import type { AppRoleEnum, DepartmentEnum, DbAuditLog } from '@/lib/supabase-store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,7 +58,7 @@ interface ROIConfig {
 export function AdminTab() {
   const { isAdmin, user, role: currentRole } = useAuth();
   const [users, setUsers] = useState<UserWithRole[]>([]);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<DbAuditLog[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [roiConfigs, setROIConfigs] = useState<ROIConfig[]>([]);
   const [landingContent, setLandingContent] = useState<{ id?: string; section: string; content: string; title?: string }[]>([]);
@@ -102,7 +102,7 @@ export function AdminTab() {
         display_name: p.display_name,
         department: p.department,
         role: (userRole?.role as AppRoleEnum) || 'viewer',
-        suspended: (p as any).suspended || false,
+        suspended: p.suspended || false,
       };
     });
     setUsers(userList);
@@ -233,7 +233,7 @@ export function AdminTab() {
     const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `synphera-audit-${format(new Date(), 'yyyy-MM-dd')}.csv`; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = `prompt-intelligence-suite-audit-${format(new Date(), 'yyyy-MM-dd')}.csv`; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -243,7 +243,7 @@ export function AdminTab() {
     const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `synphera-access-${format(new Date(), 'yyyy-MM-dd')}.csv`; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = `prompt-intelligence-suite-access-${format(new Date(), 'yyyy-MM-dd')}.csv`; a.click();
     URL.revokeObjectURL(url);
   };
 

@@ -64,7 +64,7 @@ export default function ResetPassword() {
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="w-full max-w-md space-y-8 text-center">
           <div className="flex justify-center">
-            <img src={synpheraLogo} alt="SynPhera logo" className="h-14 w-14 rounded-2xl object-cover synphera-glow" />
+            <img src={synpheraLogo} alt="The Prompt Intelligence Suite logo" className="h-14 w-14 rounded-2xl object-cover synphera-glow" />
           </div>
           <h1 className="font-heading text-2xl font-bold">Invalid Reset Link</h1>
           <p className="text-muted-foreground text-sm">
@@ -101,7 +101,7 @@ export default function ResetPassword() {
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-3">
           <div className="flex justify-center">
-            <img src={synpheraLogo} alt="SynPhera logo" className="h-14 w-14 rounded-2xl object-cover synphera-glow" />
+            <img src={synpheraLogo} alt="The Prompt Intelligence Suite logo" className="h-14 w-14 rounded-2xl object-cover synphera-glow" />
           </div>
           <h1 className="font-heading text-3xl font-bold tracking-tight">
             Reset Password

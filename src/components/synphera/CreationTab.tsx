@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +10,7 @@ import { ROICategory, ScanResult } from '@/lib/synphera-types';
 import { runSecurityScan } from '@/lib/security-scanner';
 import { validatePromptBestPractices, analyzePrompt, type ValidationResult, type PromptAnalysis } from '@/lib/prompt-validator';
 import { createAsset, saveROIFact, addAuditLog } from '@/lib/supabase-store';
-import type { DepartmentEnum, AssetStatusEnum } from '@/lib/supabase-store';
+import type { DepartmentEnum, AssetStatusEnum, PromptAssetMetadata } from '@/lib/supabase-store';
 import { ScanResultPanel } from './ScanResultPanel';
 import { ROIBuilder, type ROIEntry } from './ROIBuilder';
 import { PromptEditor } from './PromptEditor';
@@ -18,9 +18,12 @@ import { AssignForReviewDialog } from './AssignForReviewDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { Shield, Save, AlertTriangle, MessageSquare, Lock, Info, CheckCircle, XCircle, Users, Ban, Activity, Cpu, Brain, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import type { CreationSeed } from '@/pages/Index';
 
 interface CreationTabProps {
   onAssetCreated: () => void;
+  creationSeed?: CreationSeed | null;
+  onSeedConsumed?: () => void;
 }
 
 interface ComplianceResult {
@@ -103,15 +106,11 @@ Margin Sensitivity Table:
 
 The Optimal Path: A specific recommendation on which grade/supplier to move 20% of the volume to for immediate margin recovery."`;
 
-const DEMO_BENEFITS: ROIEntry[] = [
-  { category: 'Cost Savings', value: 8.5, description: 'Total Conversion Cost (TCC) reduction through optimized supplier mix and reduced energy overhead' },
-  { category: 'Compliance Improvement', value: 3.2, description: 'Delivered Quality Adjusted Price (DQAP) improvement via rebate recovery audit' },
-  { category: 'Operational Velocity Improvement', value: 12, description: 'Regrind Utilization Efficiency (RUE) improvement through optimized regrind-to-virgin ratios' },
-  { category: 'Risk Level Reduction', value: -5, description: 'Reduced exposure to monomer price volatility through diversified supplier strategy' },
-  { category: 'Revenue Increase', value: 2.3, description: 'Margin recovery from optimized grade/supplier volume allocation' },
-];
+function cloneROIEntries(entries: ROIEntry[]): ROIEntry[] {
+  return entries.map((entry) => ({ ...entry }));
+}
 
-export function CreationTab({ onAssetCreated }: CreationTabProps) {
+export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: CreationTabProps) {
   const { user, canEdit, role, profile } = useAuth();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -138,11 +137,8 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       setDepartment(profile.department as DepartmentEnum);
     }
   }, [profile?.department]);
-  
-  const canSave = title.trim().length > 0 && content.trim().length > 0;
-  const isBlocked = false;
 
-  const handleContentChange = (val: string) => {
+  const handleContentChange = useCallback((val: string) => {
     setContent(val);
     setComplianceResults([]);
     setComplianceValidated(false);
@@ -151,17 +147,43 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     } else {
       setValidation(null);
     }
+  }, [title]);
+
+  useEffect(() => {
+    if (!creationSeed) return;
+
+    setTitle(creationSeed.title);
+    handleContentChange(creationSeed.content);
+    setDepartment(creationSeed.department);
+    setRoiEntries(cloneROIEntries(creationSeed.roiEntries));
+    setScanResult(null);
+    setJustification('');
+    setCommitMessage('');
+    setValidation(null);
+    setAnalysis(null);
+    setSelectedFrameworks([]);
+    setComplianceResults([]);
+    setComplianceValidated(false);
+    onSeedConsumed?.();
+    toast.success('Prompt loaded into Create');
+  }, [creationSeed, handleContentChange, onSeedConsumed]);
+  
+  const canSave = title.trim().length > 0 && content.trim().length > 0;
+  const isBlocked = false;
+
+  const applyIngestedPrompt = (nextTitle: string, nextContent: string, nextBenefits: ROIEntry[]) => {
+    setTitle(nextTitle);
+    handleContentChange(nextContent);
+    setRoiEntries(cloneROIEntries(nextBenefits));
+    setScanResult(null);
+    setJustification('');
+    setCommitMessage('');
   };
 
   // Ingest button: load demo prompt
   const handleIngest = () => {
-    setTitle(DEMO_PROMPT_TITLE);
-    setContent(DEMO_PROMPT_CONTENT);
-    setRoiEntries([...DEMO_BENEFITS]);
+    applyIngestedPrompt(DEMO_PROMPT_TITLE, DEMO_PROMPT_CONTENT, []);
     toast.success('Demo prompt imported from LLM');
-    if (DEMO_PROMPT_CONTENT.length > 20) {
-      setValidation(validatePromptBestPractices(DEMO_PROMPT_CONTENT, DEMO_PROMPT_TITLE));
-    }
   };
 
   // Compliance Validation
@@ -242,7 +264,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
   };
 
   // Build metadata including profile summary
-  const buildMetadata = () => {
+  const buildMetadata = (): PromptAssetMetadata => {
     const benefitSummary = roiEntries.filter(e => e.value !== 0).map(e => ({
       category: e.category,
       value: e.value,
@@ -270,14 +292,14 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       },
     };
   };
-  
-  const handleSave = async () => {
-    if (!canSave || isBlocked || !user) return;
+
+  const saveAsset = async (status: AssetStatusEnum, successMessage: string, assignedTo: string | null = null) => {
+    if (!canSave || isBlocked || !user) return false;
     if (!commitMessage.trim()) {
       toast.error('Message to validator is required');
-      return;
+      return false;
     }
-    
+
     setIsSaving(true);
     const metadata = buildMetadata();
 
@@ -285,9 +307,9 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       title: title.trim(),
       content: content.trim(),
       version: 1.0,
-      status: 'draft' as AssetStatusEnum,
+      status,
       parent_id: null,
-      assigned_to: null,
+      assigned_to: assignedTo,
       created_by: user.id,
       department,
       category: null,
@@ -297,22 +319,33 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       is_locked: false,
       tags: [],
       metadata,
-    } as any);
-    
-    if (asset) {
-      for (const entry of roiEntries) {
-        if (entry.value !== 0) {
-          await saveROIFact({ asset_id: asset.id, category: entry.category, value: entry.value, description: entry.description || null });
-        }
-      }
-      
-      toast.success(`Asset "${title}" saved to catalogue!`);
-      resetForm();
-      onAssetCreated();
-    } else {
+    });
+
+    if (!asset) {
       toast.error('Failed to save asset. Check your permissions.');
+      setIsSaving(false);
+      return false;
     }
+
+    for (const entry of roiEntries) {
+      if (entry.value !== 0) {
+        await saveROIFact({ asset_id: asset.id, category: entry.category, value: entry.value, description: entry.description || null });
+      }
+    }
+
+    toast.success(successMessage);
+    resetForm();
+    onAssetCreated();
     setIsSaving(false);
+    return asset;
+  };
+  
+  const handleSaveForLater = async () => {
+    await saveAsset('draft' as AssetStatusEnum, `Asset "${title}" saved for later completion.`);
+  };
+
+  const handleSave = async () => {
+    await saveAsset('draft' as AssetStatusEnum, `Asset "${title}" saved to catalogue!`);
   };
 
   const handleAssignForReview = async (colleagueId: string, requestType: 'review' | 'validate') => {
@@ -341,7 +374,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
       is_locked: false,
       tags: [],
       metadata,
-    } as any);
+    });
 
     if (asset) {
       for (const entry of roiEntries) {
@@ -372,23 +405,6 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
     setValidation(null); setAnalysis(null);
     setSelectedFrameworks([]); setComplianceResults([]); setComplianceValidated(false);
   };
-
-  const profileSummary = useMemo(() => {
-    const benefitSummary = roiEntries.filter(e => e.value !== 0).map(e => `${e.category}: ${e.value > 0 ? '+' : ''}${e.value}%`).join(', ');
-    return [
-      { label: 'Company', value: 'X-Phera' },
-      { label: 'Department', value: profile?.department || 'Not set' },
-      { label: 'Task Classification', value: analysis?.taskType || 'Pending analysis' },
-      { label: 'Determinism Score', value: analysis ? `${analysis.determinismScore} / 100` : 'Pending analysis' },
-      { label: 'Stability', value: validation ? (validation.score >= 70 ? 'High' : validation.score >= 40 ? 'Medium' : 'Low') : 'Pending validation' },
-      { label: 'LLM Dependency', value: analysis ? `${analysis.routing.allocation.LLM}%` : 'Pending analysis' },
-      { label: 'Audit Readiness', value: scanResult ? (scanResult.status === 'GREEN' ? 'Strong (logging enabled)' : 'Requires remediation') : 'Pending scan' },
-      { label: 'Scalability', value: 'Enterprise-grade' },
-      { label: 'Code Portability', value: 'Medium' },
-      { label: 'Benefits', value: benefitSummary || 'No benefits configured' },
-      { label: 'Compliance', value: complianceAllClean ? complianceResults.map(r => r.framework).join(', ') + ' — Clean' : complianceValidated ? 'Issues detected' : 'Pending validation' },
-    ];
-  }, [validation, analysis, content, scanResult, roiEntries, complianceResults, complianceValidated, complianceAllClean, profile?.department]);
 
   if (!canEdit) {
     return (
@@ -454,7 +470,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
         </Card>
       </div>
 
-      {/* Bottom row: Compliance Validation + Prompt Profile Summary */}
+      {/* Bottom row: Compliance Validation + Prompt Analysis */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Bottom-Left: Compliance Validation */}
         <Card className="shadow-none">
@@ -585,26 +601,7 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
           </CardContent>
         </Card>
 
-        {/* Bottom-Right: Overall Prompt Profile Summary */}
-        <Card className="shadow-none">
-          <CardHeader className="pb-2 px-4 pt-4">
-            <CardTitle className="text-base font-semibold italic">Overall Prompt Profile Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="space-y-1.5 text-sm">
-              {profileSummary.map(({ label, value }) => (
-                <div key={label} className="flex gap-1.5">
-                  <span className="font-semibold text-foreground whitespace-nowrap text-xs">{label}:</span>
-                  <span className="text-muted-foreground text-xs">{value}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Prompt Analysis Results */}
-      {analysis && (
+        {/* Bottom-Right: Prompt Analysis */}
         <Card className="shadow-none">
           <CardHeader className="pb-2 px-4 pt-4">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -613,77 +610,85 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-lg border p-3 space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Task Classification</span>
-                <p className="text-sm font-semibold">{analysis.taskType}</p>
-              </div>
-              <div className="rounded-lg border p-3 space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Determinism Score</span>
-                <p className="text-sm font-semibold">{analysis.determinismScore} / 100</p>
-                <div className="w-full bg-muted rounded-full h-1.5">
-                  <div
-                    className="h-1.5 rounded-full transition-all"
-                    style={{
-                      width: `${analysis.determinismScore}%`,
-                      backgroundColor: analysis.determinismScore >= 70 ? 'hsl(var(--status-green))' : analysis.determinismScore >= 40 ? 'hsl(var(--status-amber))' : 'hsl(var(--status-red))',
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="rounded-lg border p-3 space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Risk & Compliance Signals</span>
-                {Object.entries(analysis.flags).map(([key, val]) => (
-                  <p key={key} className="text-xs flex items-center gap-1.5">
-                    {val ? <AlertTriangle className="h-3 w-3 text-status-amber" /> : <CheckCircle className="h-3 w-3 text-status-green" />}
-                    {key}: {val ? 'Yes' : 'No'}
-                  </p>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground">Scoring Axes</span>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {Object.entries(analysis.scores).map(([axis, val]) => (
-                  <div key={axis} className="flex items-center gap-2">
-                    <span className="text-xs capitalize w-24 text-muted-foreground">{axis}</span>
-                    <div className="flex-1 bg-muted rounded-full h-1.5">
+            {analysis ? (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                  <div className="rounded-lg border p-3 space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground">Task Classification</span>
+                    <p className="text-sm font-semibold">{analysis.taskType}</p>
+                  </div>
+                  <div className="rounded-lg border p-3 space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground">Determinism Score</span>
+                    <p className="text-sm font-semibold">{analysis.determinismScore} / 100</p>
+                    <div className="w-full bg-muted rounded-full h-1.5">
                       <div
-                        className="h-1.5 rounded-full bg-primary transition-all"
-                        style={{ width: `${val * 100}%` }}
+                        className="h-1.5 rounded-full transition-all"
+                        style={{
+                          width: `${analysis.determinismScore}%`,
+                          backgroundColor: analysis.determinismScore >= 70 ? 'hsl(var(--status-green))' : analysis.determinismScore >= 40 ? 'hsl(var(--status-amber))' : 'hsl(var(--status-red))',
+                        }}
                       />
                     </div>
-                    <span className="text-xs font-mono w-8 text-right">{val.toFixed(1)}</span>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="rounded-lg border p-3 space-y-1 sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+                    <span className="text-xs font-medium text-muted-foreground">Risk & Compliance Signals</span>
+                    {Object.entries(analysis.flags).map(([key, val]) => (
+                      <p key={key} className="text-xs flex items-center gap-1.5">
+                        {val ? <AlertTriangle className="h-3 w-3 text-status-amber" /> : <CheckCircle className="h-3 w-3 text-status-green" />}
+                        {key}: {val ? 'Yes' : 'No'}
+                      </p>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <Cpu className="h-3 w-3" /> Execution Routing Recommendation
-              </span>
-              <div className="flex gap-2 flex-wrap">
-                {Object.entries(analysis.routing.allocation).map(([engine, pct]) => (
-                  <Tooltip key={engine}>
-                    <TooltipTrigger asChild>
-                      <Badge variant="outline" className="gap-1 text-xs cursor-help">
-                        {engine === 'LLM' && <Brain className="h-3 w-3" />}
-                        {engine === 'C++' && <Cpu className="h-3 w-3" />}
-                        {engine}: {pct}%
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs">{analysis.routing.rationale[engine]}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
+                <div className="space-y-2">
+                  <span className="text-xs font-medium text-muted-foreground">Scoring Axes</span>
+                  <div className="grid gap-2">
+                    {Object.entries(analysis.scores).map(([axis, val]) => (
+                      <div key={axis} className="flex items-center gap-2">
+                        <span className="text-xs capitalize w-24 text-muted-foreground">{axis}</span>
+                        <div className="flex-1 bg-muted rounded-full h-1.5">
+                          <div
+                            className="h-1.5 rounded-full bg-primary transition-all"
+                            style={{ width: `${val * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-mono w-8 text-right">{val.toFixed(1)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    <Cpu className="h-3 w-3" /> Execution Routing Recommendation
+                  </span>
+                  <div className="flex gap-2 flex-wrap">
+                    {Object.entries(analysis.routing.allocation).map(([engine, pct]) => (
+                      <Tooltip key={engine}>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className="gap-1 text-xs cursor-help">
+                            {engine === 'LLM' && <Brain className="h-3 w-3" />}
+                            {engine === 'C++' && <Cpu className="h-3 w-3" />}
+                            {engine}: {pct}%
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">{analysis.routing.rationale[engine]}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
+                Prompt analysis will appear here after you run compliance validation.
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
-      )}
+      </div>
 
       {/* Message to validator + action buttons */}
       <div className="space-y-3">
@@ -702,6 +707,15 @@ export function CreationTab({ onAssetCreated }: CreationTabProps) {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button
+            onClick={handleSaveForLater}
+            disabled={!canSave || isBlocked || !commitMessage.trim() || isSaving}
+            className="gap-2"
+            variant="secondary"
+          >
+            <Save className="h-4 w-4" />
+            {isSaving ? 'Saving...' : 'Save for Later Completion'}
+          </Button>
           <Button
             onClick={handleSave}
             disabled={!canSave || isBlocked || !commitMessage.trim() || isSaving}

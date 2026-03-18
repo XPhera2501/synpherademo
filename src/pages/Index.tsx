@@ -8,19 +8,35 @@ import { AnalyticsTab } from '@/components/synphera/AnalyticsTab';
 import { AdminTab } from '@/components/synphera/AdminTab';
 import { useAuth } from '@/hooks/useAuth';
 import { FileText, CheckSquare, Library, BarChart3, Settings } from 'lucide-react';
+import type { DepartmentEnum } from '@/lib/supabase-store';
+import type { ROIEntry } from '@/components/synphera/ROIBuilder';
+
+export interface CreationSeed {
+  sourceAssetId: string;
+  title: string;
+  content: string;
+  department: DepartmentEnum;
+  roiEntries: ROIEntry[];
+}
 
 export default function Index() {
   const [refreshKey, setRefreshKey] = useState(0);
+  const [activeTab, setActiveTab] = useState('creation');
+  const [creationSeed, setCreationSeed] = useState<CreationSeed | null>(null);
   const { isAdmin, canEdit } = useAuth();
   
   const handleRefresh = () => setRefreshKey(prev => prev + 1);
+  const handleLoadIntoCreation = (seed: CreationSeed) => {
+    setCreationSeed(seed);
+    setActiveTab('creation');
+  };
   
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-6 flex-1 w-full">
-        <Tabs defaultValue="creation" className="space-y-4 sm:space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
           <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'} bg-card border border-border h-12 sm:h-14`}>
             <TabsTrigger 
               value="creation" 
@@ -62,7 +78,7 @@ export default function Index() {
           </TabsList>
           
           <TabsContent value="creation" className="animate-fade-in-up">
-            <CreationTab onAssetCreated={handleRefresh} />
+            <CreationTab onAssetCreated={handleRefresh} creationSeed={creationSeed} onSeedConsumed={() => setCreationSeed(null)} />
           </TabsContent>
           
           <TabsContent value="validate" className="animate-fade-in-up">
@@ -70,7 +86,7 @@ export default function Index() {
           </TabsContent>
           
           <TabsContent value="catalogue" className="animate-fade-in-up">
-            <CatalogueTab refreshKey={refreshKey} />
+            <CatalogueTab refreshKey={refreshKey} onLoadIntoCreation={handleLoadIntoCreation} />
           </TabsContent>
           
           <TabsContent value="dashboard" className="animate-fade-in-up">
@@ -87,7 +103,7 @@ export default function Index() {
 
       <footer className="border-t border-border bg-card/50 py-3">
         <div className="mx-auto max-w-7xl px-6 flex items-center justify-center text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} SynPhera™ — Enterprise GenAI Governance</span>
+          <span>© {new Date().getFullYear()} The Prompt Intelligence Suite — Enterprise GenAI Governance</span>
         </div>
       </footer>
     </div>
