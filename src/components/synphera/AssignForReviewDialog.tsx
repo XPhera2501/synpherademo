@@ -35,7 +35,6 @@ export function AssignForReviewDialog({ open, onOpenChange, onSend }: AssignForR
 
   const filteredProfiles = useMemo(() => {
     return profiles
-      .filter(p => p.id !== user?.id)
       .filter(p => {
         if (!search) return true;
         const q = search.toLowerCase();
@@ -44,7 +43,7 @@ export function AssignForReviewDialog({ open, onOpenChange, onSend }: AssignForR
           p.department?.toLowerCase().includes(q)
         );
       });
-  }, [profiles, search, user?.id]);
+  }, [profiles, search]);
 
   const handleSend = () => {
     if (!selectedColleague) return;
@@ -94,7 +93,9 @@ export function AssignForReviewDialog({ open, onOpenChange, onSend }: AssignForR
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{p.display_name || 'Unknown'}</p>
+                    <p className="font-medium truncate">
+                      {p.id === user?.id ? `${p.display_name || 'Unknown'} (Me)` : p.display_name || 'Unknown'}
+                    </p>
                     {p.department && (
                       <p className="text-xs text-muted-foreground">{p.department}</p>
                     )}

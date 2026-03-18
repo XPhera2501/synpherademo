@@ -2,7 +2,7 @@
 
 export type SecurityStatus = 'GREEN' | 'AMBER' | 'RED' | 'PENDING';
 export type AssetStatus = 'draft' | 'created' | 'in_review' | 'approved';
-export type ROICategory = 'Cost Savings' | 'Compliance Improvement' | 'Operational Velocity Improvement' | 'Risk Level Reduction' | 'Revenue Increase';
+export type ROICategory = 'Time Savings' | 'Risk Mitigation' | 'Efficiency' | 'Cost Savings' | 'New Value';
 export type Department = 'Operations' | 'Legal' | 'R&D' | 'Marketing' | 'Finance' | 'HR' | 'IT' | 'Executive';
 
 export interface Reviewer {
@@ -92,11 +92,11 @@ export const REVIEWERS: Reviewer[] = [
 ];
 
 export const ROI_CATEGORIES: ROICategory[] = [
+  'Time Savings',
+  'Risk Mitigation',
+  'Efficiency',
   'Cost Savings',
-  'Compliance Improvement',
-  'Operational Velocity Improvement',
-  'Risk Level Reduction',
-  'Revenue Increase',
+  'New Value',
 ];
 
 export const DEPARTMENTS: Department[] = [

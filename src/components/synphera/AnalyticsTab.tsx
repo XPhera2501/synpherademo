@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { getAssets, getROIFacts, getDepartmentROIMatrix, getTotalEnterpriseValue, getVersionSnapshots, getSecurityStats, getAssetCountByDepartment, getAuditLogs, type DbPromptAsset, type DbROIFact } from '@/lib/supabase-store';
+import { getAssets, getROIFacts, getDepartmentROIMatrix, getTotalEnterpriseValue, getVersionSnapshots, getSecurityStats, getAssetCountByDepartment, getProfiles, type DbPromptAsset, type DbROIFact } from '@/lib/supabase-store';
 import { DEPARTMENTS, ROI_CATEGORIES, Department, ROICategory } from '@/lib/synphera-types';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { DollarSign, TrendingUp, GitBranch, Building2, Shield, Activity, AlertTriangle, CheckCircle, XCircle, Clock, Users } from 'lucide-react';
@@ -29,20 +29,20 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
   const [versionCount, setVersionCount] = useState(0);
   const [securityStats, setSecurityStats] = useState({ green: 0, amber: 0, red: 0, pending: 0 });
   const [deptCounts, setDeptCounts] = useState<Record<string, number>>({});
-  const [auditCount, setAuditCount] = useState(0);
+  const [userCount, setUserCount] = useState(0);
   const [roiWeights, setRoiWeights] = useState<Record<string, Record<string, number>>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [a, f, tv, rm, vs, logs] = await Promise.all([
-        getAssets(), getROIFacts(), getTotalEnterpriseValue(), getDepartmentROIMatrix(), getVersionSnapshots(), getAuditLogs(500)
+      const [a, f, tv, rm, vs, profiles] = await Promise.all([
+        getAssets(), getROIFacts(), getTotalEnterpriseValue(), getDepartmentROIMatrix(), getVersionSnapshots(), getProfiles()
       ]);
       setAssets(a); setFacts(f); setTotalValue(tv); setRoiMatrix(rm); setVersionCount(vs.length);
       setSecurityStats(await getSecurityStats(a));
       setDeptCounts(await getAssetCountByDepartment(a));
-      setAuditCount(logs.length);
+      setUserCount(profiles.length);
 
       // Fetch ROI configs for weighted calculations
       const { data: configs } = await supabase.from('roi_configs').select('*');
@@ -117,6 +117,59 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
       fill: DEPT_COLORS[d],
     })), [deptCounts]);
 
+  const benefitPromptMatrix = useMemo(() => {
+    const assetDepartmentMap = new Map(assets.map((asset) => [asset.id, asset.department]));
+    const matrix = Object.fromEntries(
+      DEPARTMENTS.map((department) => [
+        department,
+        Object.fromEntries(ROI_CATEGORIES.map((category) => [category, new Set<string>()])),
+      ]),
+    ) as Record<Department, Record<ROICategory, Set<string>>>;
+
+    const promptsWithBenefitsByDepartment = Object.fromEntries(
+      DEPARTMENTS.map((department) => [department, new Set<string>()]),
+    ) as Record<Department, Set<string>>;
+    const promptsWithBenefits = new Set<string>();
+
+    facts.forEach((fact) => {
+      const department = assetDepartmentMap.get(fact.asset_id) as Department | undefined;
+      const category = fact.category as ROICategory;
+
+      if (!department || !ROI_CATEGORIES.includes(category)) {
+        return;
+      }
+
+      matrix[department][category].add(fact.asset_id);
+      promptsWithBenefitsByDepartment[department].add(fact.asset_id);
+      promptsWithBenefits.add(fact.asset_id);
+    });
+
+    return {
+      matrix,
+      deptTotals: Object.fromEntries(
+        DEPARTMENTS.map((department) => [department, promptsWithBenefitsByDepartment[department].size]),
+      ) as Record<Department, number>,
+      categoryTotals: Object.fromEntries(
+        ROI_CATEGORIES.map((category) => [
+          category,
+          DEPARTMENTS.reduce((sum, department) => sum + matrix[department][category].size, 0),
+        ]),
+      ) as Record<ROICategory, number>,
+      totalPrompts: promptsWithBenefits.size,
+    };
+  }, [assets, facts]);
+
+  const promptMetrics = useMemo(() => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    return {
+      totalPrompts: assets.length,
+      promptsLastMonth: assets.filter((asset) => new Date(asset.created_at) >= thirtyDaysAgo).length,
+      promptReuse: assets.filter((asset) => asset.version > 1).length,
+    };
+  }, [assets]);
+
   if (loading) {
     return <div className="flex justify-center py-12"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
@@ -166,11 +219,11 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
         </Card>
         <Card className="metric-card sm:col-span-2 lg:col-span-1">
           <CardHeader className="pb-2 p-4">
-            <CardDescription className="flex items-center gap-2 text-xs"><Users className="h-3.5 w-3.5" />Audit Events</CardDescription>
+            <CardDescription className="flex items-center gap-2 text-xs"><Users className="h-3.5 w-3.5" />Users</CardDescription>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground font-mono">{auditCount}</p>
-            <p className="text-xs text-muted-foreground mt-1">Total actions logged</p>
+            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground font-mono">{userCount}</p>
+            <p className="text-xs text-muted-foreground mt-1">Registered users</p>
           </CardContent>
         </Card>
       </div>
@@ -288,10 +341,10 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
         </div>
       </div>
 
-      {/* ROI by Department */}
+      {/* Benefits by Department */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base"><TrendingUp className="h-5 w-5 text-primary" />ROI by Department</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base"><TrendingUp className="h-5 w-5 text-primary" />Benefits by Department</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {deptTotals.filter(d => d.total > 0).map(({ dept, total, weighted }) => (
@@ -309,31 +362,45 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
             </div>
           ))}
           {deptTotals.every(d => d.total === 0) && (
-            <p className="text-sm text-muted-foreground text-center py-4">No ROI data yet.</p>
+            <p className="text-sm text-muted-foreground text-center py-4">No benefit data yet.</p>
           )}
         </CardContent>
       </Card>
 
-      {/* Enterprise Value Bar */}
+      {/* Prompt Summary */}
       <Card className="synphera-border-glow">
         <CardContent className="py-4">
-          <div className="flex items-center justif3-between fl3x-wrap gap-2">
-            <div className="flex items-center gap-3">
-              <DollarSign className="h-6 w-6 text-primary" />
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-card/50 px-4 py-3">
+              <Activity className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-sm font-medium">Total Enterprise Value Created</p>
-                <p className="text-xs text-muted-foreground">{assets.length} assets · {facts.length} ROI facts quantified</p>
+                <p className="text-xs text-muted-foreground">Total number of prompt</p>
+                <p className="text-2xl font-bold font-mono text-primary">{promptMetrics.totalPrompts}</p>
               </div>
             </div>
-            <p className="text-2xl sm:text-3xl font-bold font-mono text-primary">${totalValue.toLocaleString()}</p>
+            <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-card/50 px-4 py-3">
+              <Clock className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-xs text-muted-foreground">Total prompt created last month</p>
+                <p className="text-2xl font-bold font-mono text-primary">{promptMetrics.promptsLastMonth}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-card/50 px-4 py-3">
+              <GitBranch className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-xs text-muted-foreground">Total prompt reuse</p>
+                <p className="text-2xl font-bold font-mono text-primary">{promptMetrics.promptReuse}</p>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* ROI Matrix */}
+      {/* Benefit Matrix */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base"><DollarSign className="h-5 w-5 text-primary" />ROI Matrix: Departments × Categories</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base"><DollarSign className="h-5 w-5 text-primary" />Benefit Matrix by Categories</CardTitle>
+          <CardDescription className="text-xs">Counts distinct prompts tagged with each benefit category by department.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto -mx-6 px-6">
@@ -349,29 +416,29 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
               </thead>
               <tbody>
                 {DEPARTMENTS.map(dept => {
-                  const deptTotal = ROI_CATEGORIES.reduce((sum, cat) => sum + (roiMatrix[dept]?.[cat] || 0), 0);
+                  const deptTotal = benefitPromptMatrix.deptTotals[dept];
                   if (deptTotal === 0) return null;
                   return (
                     <tr key={dept} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                       <td className="py-2.5 px-3 font-medium text-sm">{dept}</td>
                       {ROI_CATEGORIES.map(cat => (
                         <td key={cat} className="py-2.5 px-3 roi-cell text-muted-foreground text-sm">
-                          {(roiMatrix[dept]?.[cat] || 0) > 0 ? `$${(roiMatrix[dept][cat]).toLocaleString()}` : '—'}
+                          {benefitPromptMatrix.matrix[dept][cat].size > 0 ? benefitPromptMatrix.matrix[dept][cat].size.toLocaleString() : '—'}
                         </td>
                       ))}
-                      <td className="py-2.5 px-3 roi-cell font-semibold text-primary text-sm">${deptTotal.toLocaleString()}</td>
+                      <td className="py-2.5 px-3 roi-cell font-semibold text-primary text-sm">{deptTotal.toLocaleString()}</td>
                     </tr>
                   );
                 })}
               </tbody>
               <tfoot>
                 <tr className="bg-muted/30">
-                  <td className="py-2.5 px-3 font-semibold text-sm">Enterprise Total</td>
+                  <td className="py-2.5 px-3 font-semibold text-sm">Total Prompts</td>
                   {ROI_CATEGORIES.map(cat => {
-                    const catTotal = DEPARTMENTS.reduce((sum, dept) => sum + (roiMatrix[dept]?.[cat] || 0), 0);
-                    return <td key={cat} className="py-2.5 px-3 roi-cell font-semibold text-muted-foreground text-sm">${catTotal.toLocaleString()}</td>;
+                    const catTotal = benefitPromptMatrix.categoryTotals[cat];
+                    return <td key={cat} className="py-2.5 px-3 roi-cell font-semibold text-muted-foreground text-sm">{catTotal.toLocaleString()}</td>;
                   })}
-                  <td className="py-2.5 px-3 roi-cell font-bold text-primary text-lg">${totalValue.toLocaleString()}</td>
+                  <td className="py-2.5 px-3 roi-cell font-bold text-primary text-lg">{benefitPromptMatrix.totalPrompts.toLocaleString()}</td>
                 </tr>
               </tfoot>
             </table>

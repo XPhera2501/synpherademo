@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -14,13 +14,15 @@ import { SecurityBadge } from './SecurityBadge';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 import { CommentThread } from './CommentThread';
 import { ROIBuilder } from './ROIBuilder';
+import { AssignForReviewDialog } from './AssignForReviewDialog';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  getAssets, updateAsset, updateAssetWithVersioning, createAsset, addLineageEntry, addVersionSnapshot, addAuditLog, getProfiles, getROIFacts,
-  type DbPromptAsset, type AssetStatusEnum, type DepartmentEnum, type DbProfile, type DbROIFact
+  getAssets, updateAssetWithVersioning, addAuditLog, getProfiles, getROIFacts, replaceROIFacts,
+  type DbPromptAsset, type AssetStatusEnum, type DepartmentEnum, type DbProfile, type DbROIFact, type PromptAssetMetadata
 } from '@/lib/supabase-store';
 import { DEPARTMENTS } from '@/lib/synphera-types';
-import type { SecurityStatus, ROICategory } from '@/lib/synphera-types';
+import type { SecurityStatus } from '@/lib/synphera-types';
+import type { ROIEntry } from './ROIBuilder';
 import {
   ChevronDown, ChevronRight, Check, Clock, FileText, Lock, Search, Filter, Send, Users,
   Inbox, Tag, Building2, ClipboardList, Save, Eye, Edit3, Activity, TrendingUp, Cpu, Brain, AlertTriangle, CheckCircle
@@ -47,6 +49,14 @@ const STATUS_LABELS: Record<string, string> = {
   approved: 'Approved',
 };
 
+function getPromptAssetMetadata(asset: DbPromptAsset): PromptAssetMetadata | null {
+  if (!asset.metadata || typeof asset.metadata !== 'object' || Array.isArray(asset.metadata)) {
+    return null;
+  }
+
+  return asset.metadata as PromptAssetMetadata;
+}
+
 function StatusDot({ status }: { status: string }) {
   return (
     <span
@@ -68,6 +78,8 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
   const [editDialogContent, setEditDialogContent] = useState('');
   const [editTitle, setEditTitle] = useState('');
   const [editCommitMessage, setEditCommitMessage] = useState('');
+  const [editRoiEntries, setEditRoiEntries] = useState<ROIEntry[]>([]);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -95,18 +107,18 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
     return assets.filter(a => a.assigned_to === user.id && (a.status === 'created' || a.status === 'in_review'));
   }, [assets, user]);
 
-  // Dept Queue: created/in_review assets in my department (not assigned to me)
+  // Dept Queue: unassigned created/in_review assets in my department
   const deptQueue = useMemo(() => {
     if (!user || !profile?.department) return [];
     return assets.filter(a =>
       (a.status === 'created' || a.status === 'in_review') &&
       a.department === profile.department &&
-      a.assigned_to !== user.id
+      !a.assigned_to
     );
   }, [assets, user, profile?.department]);
 
   // Apply filters
-  const applyFilters = (list: DbPromptAsset[]) => {
+  const applyFilters = useCallback((list: DbPromptAsset[]) => {
     let filtered = list;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -130,18 +142,44 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
       return 0;
     });
     return filtered;
-  };
+  }, [searchQuery, dateFilter, sortBy]);
 
-  const filteredReviews = useMemo(() => applyFilters(myReviews), [myReviews, searchQuery, dateFilter, sortBy]);
-  const filteredDeptQueue = useMemo(() => applyFilters(deptQueue), [deptQueue, searchQuery, dateFilter, sortBy]);
+  const filteredReviews = useMemo(() => applyFilters(myReviews), [myReviews, applyFilters]);
+  const filteredDeptQueue = useMemo(() => applyFilters(deptQueue), [deptQueue, applyFilters]);
 
   const getAssetFacts = (assetId: string) => facts.filter(f => f.asset_id === assetId);
 
   const openDetail = (asset: DbPromptAsset) => {
+    const assetFacts = getAssetFacts(asset.id);
     setSelectedAsset(asset);
     setEditDialogContent(asset.content);
     setEditTitle(asset.title);
     setEditCommitMessage('');
+    setEditRoiEntries(assetFacts.map((fact) => ({
+      category: fact.category as ROIEntry['category'],
+      value: Number(fact.value),
+      description: fact.description || '',
+    })));
+  };
+
+  const persistEditedBenefits = async (assetId: string) => {
+    const factsSaved = await replaceROIFacts(
+      assetId,
+      editRoiEntries
+        .filter((entry) => entry.value !== 0 || entry.description.trim())
+        .map((entry) => ({
+          category: entry.category,
+          value: entry.value,
+          description: entry.description.trim() || null,
+        })),
+    );
+
+    if (!factsSaved) {
+      toast.error('Failed to save benefit updates');
+      return false;
+    }
+
+    return true;
   };
 
   // Save for Later Completion — sets status to in_review
@@ -156,6 +194,11 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
       'update',
     );
     if (updated) {
+      const benefitsSaved = await persistEditedBenefits(updated.id);
+      if (!benefitsSaved) {
+        setIsSaving(false);
+        return;
+      }
       toast.success('Prompt saved — status set to In Review');
       setSelectedAsset(null);
       onAssetUpdated();
@@ -188,6 +231,11 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
       'approve_release',
     );
     if (updated) {
+      const benefitsSaved = await persistEditedBenefits(updated.id);
+      if (!benefitsSaved) {
+        setIsSaving(false);
+        return;
+      }
       toast.success(`"${editTitle}" approved!`);
       setSelectedAsset(null);
       onAssetUpdated();
@@ -198,13 +246,61 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
     setIsSaving(false);
   };
 
+  const handleSubmitForValidation = async (colleagueId: string, requestType: 'review' | 'validate') => {
+    if (!selectedAsset || !user) return;
+    if (!editCommitMessage.trim()) {
+      toast.error('Please add a message before submitting for validation');
+      return;
+    }
+
+    setIsSaving(true);
+    const updated = await updateAssetWithVersioning(
+      selectedAsset.id,
+      {
+        content: editDialogContent,
+        title: editTitle,
+        status: 'created' as AssetStatusEnum,
+        assigned_to: colleagueId,
+      },
+      user.id,
+      editCommitMessage.trim(),
+      `submit_for_${requestType}`,
+    );
+
+    if (updated) {
+      const benefitsSaved = await persistEditedBenefits(updated.id);
+      if (!benefitsSaved) {
+        setIsSaving(false);
+        return;
+      }
+
+      await addAuditLog({
+        user_id: user.id,
+        action: `submit_for_${requestType}`,
+        target_type: 'prompt_asset',
+        target_id: updated.id,
+        details: { assigned_to: colleagueId, request_type: requestType },
+      });
+
+      toast.success(`Prompt submitted for ${requestType}`);
+      setAssignDialogOpen(false);
+      setSelectedAsset(null);
+      onAssetUpdated();
+      loadData();
+    } else {
+      toast.error('Failed to submit prompt for validation');
+    }
+
+    setIsSaving(false);
+  };
+
   if (loading) {
     return <div className="flex justify-center py-12"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
   const renderRow = (asset: DbPromptAsset) => {
     const isExpanded = expandedId === asset.id;
-    const meta = (asset as any).metadata;
+    const meta = getPromptAssetMetadata(asset);
     const assetFacts = getAssetFacts(asset.id);
 
     return (
@@ -338,7 +434,7 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
             <Card className="border-dashed">
               <CardContent className="py-12 text-center">
                 <Building2 className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">No pending prompts in your department queue.</p>
+                <p className="text-muted-foreground">No unassigned prompts in your department queue.</p>
               </CardContent>
             </Card>
           ) : (
@@ -383,35 +479,24 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
                   <Textarea value={editDialogContent} onChange={e => setEditDialogContent(e.target.value)} className="bg-card text-sm font-mono min-h-[200px]" />
                 </div>
 
-                {/* Benefits */}
-                {(() => {
-                  const assetFacts = getAssetFacts(selectedAsset.id);
-                  if (assetFacts.length === 0) return null;
-                  return (
-                    <Card className="shadow-none">
-                      <CardHeader className="pb-2 px-4 pt-3">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-primary" />
-                          Benefits
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="px-4 pb-3">
-                        <div className="space-y-2">
-                          {assetFacts.map(f => (
-                            <div key={f.id} className="flex items-center justify-between text-sm border-b border-border/50 pb-2 last:border-0">
-                              <span className="text-muted-foreground">{f.category}</span>
-                              <span className="font-mono font-medium">{Number(f.value).toLocaleString()}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })()}
+                <Card className="shadow-none">
+                  <CardHeader className="pb-2 px-4 pt-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-primary" />
+                      Benefits
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Reviewers can add, adjust, or remove benefit assumptions before saving or approving.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-3">
+                    <ROIBuilder entries={editRoiEntries} onChange={setEditRoiEntries} department={selectedAsset.department} />
+                  </CardContent>
+                </Card>
 
                 {/* Prompt Analysis Metadata */}
                 {(() => {
-                  const meta = (selectedAsset as any).metadata;
+                  const meta = getPromptAssetMetadata(selectedAsset);
                   if (!meta || !meta.taskType) return null;
                   return (
                     <Card className="shadow-none">
@@ -525,6 +610,15 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
               <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button variant="outline" onClick={() => setSelectedAsset(null)}>Cancel</Button>
                 <Button
+                  variant="outline"
+                  onClick={() => setAssignDialogOpen(true)}
+                  disabled={isSaving || !editCommitMessage.trim()}
+                  className="gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  Submit for Validation
+                </Button>
+                <Button
                   variant="secondary"
                   onClick={handleSaveForLater}
                   disabled={isSaving}
@@ -542,6 +636,12 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
                   {isSaving ? 'Approving...' : 'Approve'}
                 </Button>
               </DialogFooter>
+
+              <AssignForReviewDialog
+                open={assignDialogOpen}
+                onOpenChange={setAssignDialogOpen}
+                onSend={handleSubmitForValidation}
+              />
             </>
           )}
         </DialogContent>

@@ -58,9 +58,9 @@ export default function Landing() {
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={synpheraLogo} alt="SynPhera logo" className="h-10 w-10 rounded-xl object-cover" />
+            <img src={synpheraLogo} alt="The Prompt Intelligence Suite logo" className="h-10 w-10 rounded-xl object-cover" />
             <span className="text-xl font-heading font-bold tracking-tight">
-              SynPhera<span className="synphera-text-gradient">™</span>
+              The Prompt Intelligence Suite
               <span className="text-xs font-sans font-normal text-muted-foreground ml-1.5">by X-Phera</span>
             </span>
           </div>
@@ -107,7 +107,7 @@ export default function Landing() {
         <section id="how-it-works" className="landing-section">
           <div className="mx-auto max-w-4xl px-4 sm:px-6">
             <div className="text-center mb-12">
-              <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight">How SynPhera Works</h2>
+              <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight">How The Prompt Intelligence Suite Works</h2>
               <p className="mt-4 text-muted-foreground text-lg">Five core modules, one unified governance platform.</p>
             </div>
             <Accordion type="single" collapsible className="space-y-3">
@@ -169,7 +169,7 @@ export default function Landing() {
         <section id="benefits" className="landing-section bg-card/30">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="text-center mb-12">
-              <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight">Why Choose SynPhera?</h2>
+              <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight">Why Choose The Prompt Intelligence Suite?</h2>
               <p className="mt-4 text-muted-foreground text-lg">Enterprise security, team collaboration, and measurable ROI.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -233,12 +233,12 @@ export default function Landing() {
                   <div className="whitespace-pre-wrap text-muted-foreground leading-relaxed">{termsContent}</div>
                 ) : (
                   <div className="space-y-4 text-muted-foreground leading-relaxed">
-                    <p><strong className="text-foreground">1. Acceptance of Terms.</strong> By accessing or using SynPhera ("the Platform"), you agree to be bound by these Terms & Conditions. If you do not agree, do not use the Platform.</p>
-                    <p><strong className="text-foreground">2. Use License.</strong> Subject to these Terms, SynPhera grants you a limited, non-exclusive, non-transferable license to use the Platform for your organization's internal AI governance needs.</p>
+                    <p><strong className="text-foreground">1. Acceptance of Terms.</strong> By accessing or using The Prompt Intelligence Suite ("the Platform"), you agree to be bound by these Terms & Conditions. If you do not agree, do not use the Platform.</p>
+                    <p><strong className="text-foreground">2. Use License.</strong> Subject to these Terms, The Prompt Intelligence Suite grants you a limited, non-exclusive, non-transferable license to use the Platform for your organization's internal AI governance needs.</p>
                     <p><strong className="text-foreground">3. User Responsibilities.</strong> You are responsible for maintaining the confidentiality of your account credentials, ensuring all prompt assets comply with applicable laws, and not using the Platform for any unlawful purpose.</p>
-                    <p><strong className="text-foreground">4. Data Ownership.</strong> You retain ownership of all prompt assets, templates, and content you create on the Platform. SynPhera does not claim ownership over your data.</p>
+                    <p><strong className="text-foreground">4. Data Ownership.</strong> You retain ownership of all prompt assets, templates, and content you create on the Platform. The Prompt Intelligence Suite does not claim ownership over your data.</p>
                     <p><strong className="text-foreground">5. Service Availability.</strong> We strive for 99.9% uptime but do not guarantee uninterrupted access. Scheduled maintenance windows will be communicated in advance.</p>
-                    <p><strong className="text-foreground">6. Limitation of Liability.</strong> SynPhera shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the Platform.</p>
+                    <p><strong className="text-foreground">6. Limitation of Liability.</strong> The Prompt Intelligence Suite shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the Platform.</p>
                     <p><strong className="text-foreground">7. Modifications.</strong> We reserve the right to modify these Terms at any time. Continued use of the Platform constitutes acceptance of modified Terms.</p>
                   </div>
                 )}
@@ -251,7 +251,7 @@ export default function Landing() {
                 const text = el.innerText;
                 const blob = new Blob([text], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = 'SynPhera-Terms-and-Conditions.txt'; a.click();
+                const a = document.createElement('a'); a.href = url; a.download = 'prompt-intelligence-suite-terms-and-conditions.txt'; a.click();
                 URL.revokeObjectURL(url);
               }}>
                 <Download className="h-3.5 w-3.5" /> Download T&C
@@ -272,7 +272,7 @@ export default function Landing() {
                 ) : (
                   <div className="space-y-4 text-muted-foreground leading-relaxed">
                     <p><strong className="text-foreground">Data Collection.</strong> We collect only the information necessary to provide our services: email address, display name, and usage analytics. We do not sell your data to third parties.</p>
-                    <p><strong className="text-foreground">GDPR Compliance.</strong> SynPhera is fully GDPR-compliant. You have the right to access, rectify, or delete your personal data at any time by contacting our data protection officer.</p>
+                    <p><strong className="text-foreground">GDPR Compliance.</strong> The Prompt Intelligence Suite is fully GDPR-compliant. You have the right to access, rectify, or delete your personal data at any time by contacting our data protection officer.</p>
                     <p><strong className="text-foreground">Data Storage.</strong> All data is stored securely with AES-256 encryption at rest and TLS 1.3 in transit. Our infrastructure is hosted in SOC 2 Type II certified data centers.</p>
                     <p><strong className="text-foreground">Audit Trails.</strong> All actions within the Platform are logged for compliance purposes. Audit logs are retained for 7 years in accordance with enterprise governance requirements.</p>
                     <p><strong className="text-foreground">Cookies.</strong> We use essential cookies only for authentication and session management. No third-party tracking cookies are used.</p>
@@ -288,7 +288,7 @@ export default function Landing() {
                 const text = el.innerText;
                 const blob = new Blob([text], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = 'SynPhera-Privacy-Statement.txt'; a.click();
+                const a = document.createElement('a'); a.href = url; a.download = 'prompt-intelligence-suite-privacy-statement.txt'; a.click();
                 URL.revokeObjectURL(url);
               }}>
                 <Download className="h-3.5 w-3.5" /> Download Privacy Statement
@@ -303,7 +303,7 @@ export default function Landing() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Shield className="h-4 w-4 text-primary" />
-            <span>© 2026 SynPhera™ by X-Phera. All rights reserved.</span>
+            <span>© 2026 The Prompt Intelligence Suite by X-Phera. All rights reserved.</span>
           </div>
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <button onClick={() => scrollTo('terms')} className="hover:text-foreground transition-colors">T&C</button>

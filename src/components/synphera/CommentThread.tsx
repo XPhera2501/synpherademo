@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { getComments, addComment, type DbComment } from '@/lib/supabase-store';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,7 +22,7 @@ export function CommentThread({ promptId }: CommentThreadProps) {
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const loadComments = async () => {
+  const loadComments = useCallback(async () => {
     const data = await getComments(promptId);
     // Fetch profiles for comment authors
     const userIds = [...new Set(data.map(c => c.user_id))];
@@ -33,9 +33,9 @@ export function CommentThread({ promptId }: CommentThreadProps) {
     
     const profileMap = new Map(profiles?.map(p => [p.id, p.display_name]) || []);
     setComments(data.map(c => ({ ...c, profileName: profileMap.get(c.user_id) || 'Unknown' })));
-  };
+  }, [promptId]);
 
-  useEffect(() => { loadComments(); }, [promptId]);
+  useEffect(() => { loadComments(); }, [loadComments]);
 
   const handleSubmit = async () => {
     if (!newComment.trim() || !user) return;

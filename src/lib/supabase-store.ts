@@ -1,6 +1,6 @@
 // Synphera - Supabase Data Store (replaces localStorage)
 import { supabase } from '@/integrations/supabase/client';
-import type { Tables, TablesInsert, TablesUpdate, Database } from '@/integrations/supabase/types';
+import type { Tables, TablesInsert, TablesUpdate, Database, Json } from '@/integrations/supabase/types';
 
 export type DepartmentEnum = Database['public']['Enums']['department'];
 export type AssetStatusEnum = Database['public']['Enums']['asset_status'];
@@ -12,6 +12,16 @@ export type DbLineageEntry = Tables<'lineage_entries'>;
 export type DbROIFact = Tables<'roi_facts'>;
 export type DbComment = Tables<'prompt_comments'>;
 export type DbProfile = Tables<'profiles'>;
+export type DbAuditLog = Tables<'audit_logs'>;
+
+export interface PromptAssetMetadata {
+  taskType?: string;
+  determinismScore?: number;
+  scores?: Record<string, number>;
+  flags?: Record<string, boolean>;
+  routing?: Json;
+  profileSummary?: Json;
+}
 
 // ==================== Prompt Assets ====================
 
@@ -82,7 +92,7 @@ export async function createAsset(asset: TablesInsert<'prompt_assets'>): Promise
 
 export async function updateAsset(id: string, updates: TablesUpdate<'prompt_assets'>): Promise<DbPromptAsset | null> {
   // Never allow created_by to be overwritten via code (DB trigger also enforces this)
-  const { created_by, ...safeUpdates } = updates as any;
+  const { created_by: _createdBy, ...safeUpdates } = updates;
   const { data, error } = await supabase.from('prompt_assets').update(safeUpdates).eq('id', id).select().single();
   if (error) { console.error('updateAsset error:', error); return null; }
   return data;
@@ -187,6 +197,33 @@ export async function saveROIFact(fact: TablesInsert<'roi_facts'>): Promise<void
   await supabase.from('roi_facts').insert(fact);
 }
 
+export async function replaceROIFacts(assetId: string, facts: Array<Pick<TablesInsert<'roi_facts'>, 'category' | 'value' | 'description'>>): Promise<boolean> {
+  const { error: deleteError } = await supabase.from('roi_facts').delete().eq('asset_id', assetId);
+  if (deleteError) {
+    console.error('replaceROIFacts delete error:', deleteError);
+    return false;
+  }
+
+  if (facts.length === 0) {
+    return true;
+  }
+
+  const payload: TablesInsert<'roi_facts'>[] = facts.map((fact) => ({
+    asset_id: assetId,
+    category: fact.category,
+    value: fact.value,
+    description: fact.description ?? null,
+  }));
+
+  const { error: insertError } = await supabase.from('roi_facts').insert(payload);
+  if (insertError) {
+    console.error('replaceROIFacts insert error:', insertError);
+    return false;
+  }
+
+  return true;
+}
+
 // ==================== Comments ====================
 
 export async function getComments(promptId: string): Promise<DbComment[]> {
@@ -226,7 +263,7 @@ export async function updateProfile(userId: string, updates: TablesUpdate<'profi
 }
 
 export async function suspendUser(userId: string, suspended: boolean): Promise<boolean> {
-  const { error } = await supabase.from('profiles').update({ suspended } as any).eq('id', userId);
+  const { error } = await supabase.from('profiles').update({ suspended }).eq('id', userId);
   return !error;
 }
 

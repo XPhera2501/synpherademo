@@ -87,10 +87,10 @@ export default function Auth() {
         {/* Branding */}
         <div className="text-center space-y-3">
           <div className="flex justify-center">
-            <img src={synpheraLogo} alt="SynPhera logo" className="h-14 w-14 rounded-2xl object-cover synphera-glow" />
+            <img src={synpheraLogo} alt="The Prompt Intelligence Suite logo" className="h-14 w-14 rounded-2xl object-cover synphera-glow" />
           </div>
           <h1 className="font-heading text-3xl font-bold tracking-tight">
-            Sign In to SynPhera<span className="synphera-text-gradient">™</span>
+            Sign In to The Prompt Intelligence Suite
           </h1>
           <p className="text-sm text-muted-foreground">
             Enterprise GenAI Governance Portal

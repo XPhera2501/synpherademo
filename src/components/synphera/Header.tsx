@@ -15,15 +15,12 @@ export function Header() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 sm:gap-5 min-w-0">
             <div className="relative flex-shrink-0">
-              <img src={synpheraLogo} alt="SynPhera logo" className="h-12 w-12 sm:h-20 sm:w-20 rounded-xl object-contain synphera-glow" />
+              <img src={synpheraLogo} alt="The Prompt Intelligence Suite logo" className="h-16 w-16 sm:h-24 sm:w-24 object-contain" />
             </div>
             <div className="min-w-0">
               <h1 className="font-heading text-xl sm:text-3xl font-bold tracking-tight text-foreground truncate">
-                SynPhera<span className="synphera-text-gradient">™</span>
+                The Prompt Intelligence Suite
               </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                Enterprise GenAI Prompt Governance & Lifecycle Management
-              </p>
             </div>
           </div>
           

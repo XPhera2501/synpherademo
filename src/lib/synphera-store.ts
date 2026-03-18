@@ -1,6 +1,16 @@
 // Synphera V13 Enhanced - Local Storage Data Store
 import { PromptAsset, ROIFact, LineageEntry, Department, ROICategory, VersionSnapshot, REVIEWERS, DEPARTMENTS, ROI_CATEGORIES } from './synphera-types';
 
+interface LineageTreeNode {
+  name: string;
+  fullTitle: string;
+  department: Department;
+  version: number;
+  status: PromptAsset['status'];
+  value: number;
+  children: LineageTreeNode[];
+}
+
 const STORAGE_KEYS = {
   assets: 'synphera_assets',
   roiFacts: 'synphera_roi_facts',
@@ -298,10 +308,14 @@ export function setCurrentUser(userId: string): void {
 export function getDepartmentROIMatrix(): Record<Department, Record<ROICategory, number>> {
   const assets = getAssets();
   const facts = getROIFacts();
-  
-  const matrix: Record<Department, Record<ROICategory, number>> = {} as any;
+  const matrix = Object.fromEntries(
+    DEPARTMENTS.map(dept => [
+      dept,
+      Object.fromEntries(ROI_CATEGORIES.map(cat => [cat, 0])) as Record<ROICategory, number>,
+    ]),
+  ) as Record<Department, Record<ROICategory, number>>;
+
   DEPARTMENTS.forEach(dept => {
-    matrix[dept] = {} as Record<ROICategory, number>;
     ROI_CATEGORIES.forEach(cat => { matrix[dept][cat] = 0; });
   });
   
@@ -317,11 +331,11 @@ export function getTotalEnterpriseValue(): number {
   return getROIFacts().reduce((sum, fact) => sum + fact.value, 0);
 }
 
-export function getLineageTree(): { name: string; children: any[] } {
+export function getLineageTree(): { name: string; children: LineageTreeNode[] } {
   const assets = getAssets();
   const rootAssets = assets.filter(a => !a.parentId);
-  
-  function buildNode(asset: PromptAsset): any {
+
+  function buildNode(asset: PromptAsset): LineageTreeNode {
     const children = assets.filter(a => a.parentId === asset.id);
     return {
       name: asset.title.length > 30 ? asset.title.substring(0, 30) + '...' : asset.title,

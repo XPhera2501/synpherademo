@@ -174,7 +174,7 @@ export function validatePromptBestPractices(content: string, title: string): Val
   });
 
   // 3. Structure — has numbered steps or sections
-  const hasStructure = /\d+[\.\)]\s|[-•]\s|step\s?\d|first|second|third|finally/i.test(content);
+  const hasStructure = /\d+[.)]\s|[-•]\s|step\s?\d|first|second|third|finally/i.test(content);
   checks.push({
     name: 'structure',
     passed: hasStructure,
