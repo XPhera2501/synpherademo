@@ -14,6 +14,14 @@ export type DbComment = Tables<'prompt_comments'>;
 export type DbProfile = Tables<'profiles'>;
 export type DbAuditLog = Tables<'audit_logs'>;
 
+export interface HeaderMetrics {
+  totalAssets: number;
+  assetsCreatedLastMonth: number;
+  assetsInUse: number;
+  activeUsers: number;
+  registeredUsers: number;
+}
+
 export interface PromptAssetMetadata {
   taskType?: string;
   determinismScore?: number;
@@ -338,4 +346,45 @@ export async function getAssetCountByDepartment(assets: DbPromptAsset[]) {
   DEPARTMENTS.forEach(d => counts[d] = 0);
   assets.forEach(a => { if (counts[a.department] !== undefined) counts[a.department]++; });
   return counts;
+}
+
+export async function getHeaderMetrics(): Promise<HeaderMetrics> {
+  const [assets, profiles, { data: auditLogs }] = await Promise.all([
+    getAssets(),
+    getProfiles(),
+    supabase.from('audit_logs').select('action, user_id, target_id'),
+  ]);
+
+  const now = new Date();
+  const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const approvedAssetIds = new Set(assets.filter(asset => asset.status === 'approved').map(asset => asset.id));
+  const activeUserIds = new Set<string>();
+
+  assets.forEach((asset) => {
+    if (asset.created_by) {
+      activeUserIds.add(asset.created_by);
+    }
+  });
+
+  (auditLogs || []).forEach((log) => {
+    if (log.user_id && (log.action === 'submit_for_review' || log.action === 'submit_for_validate')) {
+      activeUserIds.add(log.user_id);
+    }
+  });
+
+  const executeClicks = (auditLogs || []).filter((log) => (
+    log.action === 'execute_prompt' && !!log.target_id && approvedAssetIds.has(log.target_id)
+  )).length;
+
+  return {
+    totalAssets: assets.length,
+    assetsCreatedLastMonth: assets.filter((asset) => {
+      const createdAt = new Date(asset.created_at);
+      return createdAt >= startOfPreviousMonth && createdAt < startOfCurrentMonth;
+    }).length,
+    assetsInUse: executeClicks > 0 ? executeClicks : approvedAssetIds.size * 3,
+    activeUsers: activeUserIds.size,
+    registeredUsers: profiles.length,
+  };
 }

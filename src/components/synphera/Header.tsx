@@ -1,12 +1,71 @@
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { LogOut, User } from 'lucide-react';
+import { Boxes, CalendarDays, LogOut, PlayCircle, User, Users } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ThemeToggle } from './ThemeToggle';
+import { getHeaderMetrics, type HeaderMetrics } from '@/lib/supabase-store';
 import synpheraLogo from '@/assets/synphera-logo-transparent.png';
 
-export function Header() {
+interface HeaderProps {
+  refreshKey?: number;
+}
+
+const EMPTY_METRICS: HeaderMetrics = {
+  totalAssets: 0,
+  assetsCreatedLastMonth: 0,
+  assetsInUse: 0,
+  activeUsers: 0,
+  registeredUsers: 0,
+};
+
+export function Header({ refreshKey = 0 }: HeaderProps) {
   const { profile, signOut, user } = useAuth();
+  const [metrics, setMetrics] = useState<HeaderMetrics>(EMPTY_METRICS);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMetrics = async () => {
+      const nextMetrics = await getHeaderMetrics();
+      if (isMounted) {
+        setMetrics(nextMetrics);
+      }
+    };
+
+    loadMetrics();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshKey]);
+
+  const stats = [
+    {
+      label: 'Total Assets',
+      value: metrics.totalAssets.toLocaleString(),
+      detail: 'All prompt assets',
+      icon: Boxes,
+    },
+    {
+      label: 'Created Last Month',
+      value: metrics.assetsCreatedLastMonth.toLocaleString(),
+      detail: 'Previous calendar month',
+      icon: CalendarDays,
+    },
+    {
+      label: 'Assets In Use',
+      value: metrics.assetsInUse.toLocaleString(),
+      detail: 'Execute clicks on validated prompts',
+      icon: PlayCircle,
+    },
+    {
+      label: 'Active Users',
+      value: `${metrics.activeUsers.toLocaleString()} / ${metrics.registeredUsers.toLocaleString()}`,
+      detail: 'Submitted vs registered users',
+      icon: Users,
+    },
+  ];
 
   return (
     <header className="relative overflow-hidden border-b border-border bg-card">
@@ -45,6 +104,19 @@ export function Header() {
               </Tooltip>
             </div>
           </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {stats.map(({ label, value, detail, icon: Icon }) => (
+            <div key={label} className="rounded-xl border border-border bg-background/70 px-4 py-3 backdrop-blur-sm">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Icon className="h-3.5 w-3.5 text-primary" />
+                <span>{label}</span>
+              </div>
+              <p className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{value}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+            </div>
+          ))}
         </div>
       </div>
     </header>

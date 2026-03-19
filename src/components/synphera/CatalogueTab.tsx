@@ -12,7 +12,7 @@ import { VersionHistoryPanel } from './VersionHistoryPanel';
 import { CommentThread } from './CommentThread';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  getAssets, getProfiles, getROIFacts, updateAssetWithVersioning,
+  addAuditLog, getAssets, getProfiles, getROIFacts, updateAssetWithVersioning,
   type DbPromptAsset, type DbProfile, type DbROIFact
 } from '@/lib/supabase-store';
 import { DEPARTMENTS } from '@/lib/synphera-types';
@@ -121,7 +121,7 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
     return subject.length > 80 ? `${subject.slice(0, 80)}...` : subject;
   };
 
-  const sendToCreate = (asset: DbPromptAsset, mode: 'copy' | 'execute') => {
+  const sendToCreate = async (asset: DbPromptAsset, mode: 'copy' | 'execute') => {
     if (mode === 'execute' && asset.status !== 'approved') {
       toast.error('Only approved prompts can be executed');
       return;
@@ -134,6 +134,17 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
       department: asset.department,
       roiEntries: factsByAsset.get(asset.id) || [],
     });
+
+    if (mode === 'execute') {
+      await addAuditLog({
+        user_id: user?.id ?? null,
+        action: 'execute_prompt',
+        target_type: 'prompt_asset',
+        target_id: asset.id,
+        details: { source: 'catalogue' },
+      });
+    }
+
     toast.success(mode === 'copy' ? 'Prompt copied to Create' : 'Approved prompt sent back to LLM via Create');
   };
 

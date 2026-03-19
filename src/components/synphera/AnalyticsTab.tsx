@@ -1,12 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { getAssets, getROIFacts, getDepartmentROIMatrix, getTotalEnterpriseValue, getVersionSnapshots, getSecurityStats, getAssetCountByDepartment, getProfiles, type DbPromptAsset, type DbROIFact } from '@/lib/supabase-store';
+import { getAssets, getROIFacts, getAssetCountByDepartment, getAuditLogs, type DbPromptAsset, type DbROIFact, type DbAuditLog } from '@/lib/supabase-store';
 import { DEPARTMENTS, ROI_CATEGORIES, Department, ROICategory } from '@/lib/synphera-types';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { DollarSign, TrendingUp, GitBranch, Building2, Shield, Activity, AlertTriangle, CheckCircle, XCircle, Clock, Users } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
+import { BarChart3, DollarSign, Building2, Shield, Activity } from 'lucide-react';
 
 interface AnalyticsTabProps {
   refreshKey: number;
@@ -21,66 +18,46 @@ const STATUS_COLORS: Record<string, string> = {
   draft: '#F59E0B', created: '#3B82F6', in_review: '#8B5CF6', approved: '#10B981',
 };
 
+const ROI_CATEGORY_COLORS: Record<ROICategory, string> = {
+  'Time Savings': '#00DFD4',
+  'Risk Mitigation': '#6366F1',
+  'Efficiency': '#10B981',
+  'Cost Savings': '#F59E0B',
+  'New Value': '#EC4899',
+};
+
+function getMonthKey(dateValue: string) {
+  const date = new Date(dateValue);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function formatMonthLabel(monthKey: string) {
+  const [year, month] = monthKey.split('-').map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString('en-US', {
+    month: 'short',
+    year: '2-digit',
+  });
+}
+
 export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
   const [assets, setAssets] = useState<DbPromptAsset[]>([]);
   const [facts, setFacts] = useState<DbROIFact[]>([]);
-  const [totalValue, setTotalValue] = useState(0);
-  const [roiMatrix, setRoiMatrix] = useState<Record<string, Record<string, number>>>({});
-  const [versionCount, setVersionCount] = useState(0);
-  const [securityStats, setSecurityStats] = useState({ green: 0, amber: 0, red: 0, pending: 0 });
   const [deptCounts, setDeptCounts] = useState<Record<string, number>>({});
-  const [userCount, setUserCount] = useState(0);
-  const [roiWeights, setRoiWeights] = useState<Record<string, Record<string, number>>>({});
+  const [auditLogs, setAuditLogs] = useState<DbAuditLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [a, f, tv, rm, vs, profiles] = await Promise.all([
-        getAssets(), getROIFacts(), getTotalEnterpriseValue(), getDepartmentROIMatrix(), getVersionSnapshots(), getProfiles()
+      const [a, f, logs] = await Promise.all([
+        getAssets(), getROIFacts(), getAuditLogs(1000)
       ]);
-      setAssets(a); setFacts(f); setTotalValue(tv); setRoiMatrix(rm); setVersionCount(vs.length);
-      setSecurityStats(await getSecurityStats(a));
+      setAssets(a); setFacts(f); setAuditLogs(logs);
       setDeptCounts(await getAssetCountByDepartment(a));
-      setUserCount(profiles.length);
-
-      // Fetch ROI configs for weighted calculations
-      const { data: configs } = await supabase.from('roi_configs').select('*');
-      const { data: depts } = await supabase.from('departments').select('*');
-      if (configs && depts) {
-        const weights: Record<string, Record<string, number>> = {};
-        configs.forEach(cfg => {
-          const dept = depts.find(d => d.id === cfg.department_id);
-          const deptName = dept?.name || '__global__';
-          if (!weights[deptName]) weights[deptName] = {};
-          weights[deptName][cfg.category] = cfg.weight ?? 1;
-        });
-        setRoiWeights(weights);
-      }
 
       setLoading(false);
     })();
   }, [refreshKey]);
-
-  const sunburstData = useMemo(() => {
-    const deptGroups: Record<string, DbPromptAsset[]> = {};
-    DEPARTMENTS.forEach(d => deptGroups[d] = []);
-    assets.forEach(a => { if (deptGroups[a.department]) deptGroups[a.department].push(a); });
-    
-    const innerRing = DEPARTMENTS
-      .filter(d => deptGroups[d].length > 0)
-      .map(d => ({ name: d, value: deptGroups[d].length, fill: DEPT_COLORS[d] }));
-    
-    const outerRing = assets.map(a => ({
-      name: a.title.length > 20 ? a.title.substring(0, 20) + '...' : a.title,
-      fullTitle: a.title, value: 1,
-      fill: DEPT_COLORS[a.department as Department] + (a.parent_id ? '99' : ''),
-      department: a.department, version: a.version,
-      hasChildren: assets.some(c => c.parent_id === a.id),
-    }));
-    
-    return { innerRing, outerRing };
-  }, [assets]);
 
   const statusData = useMemo(() => {
     const counts: Record<string, number> = { draft: 0, created: 0, in_review: 0, approved: 0 };
@@ -93,29 +70,117 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
     ].filter(d => d.value > 0);
   }, [assets]);
 
-  const deptTotals = useMemo(() => {
-    return DEPARTMENTS.map(dept => {
-      const weighted = ROI_CATEGORIES.reduce((sum, cat) => {
-        const raw = roiMatrix[dept]?.[cat] || 0;
-        const weight = roiWeights[dept]?.[cat] ?? roiWeights['__global__']?.[cat] ?? 1;
-        return sum + (raw * weight);
-      }, 0);
-      const unweighted = ROI_CATEGORIES.reduce((sum, cat) => sum + (roiMatrix[dept]?.[cat] || 0), 0);
-      return { dept, total: unweighted, weighted };
-    }).sort((a, b) => b.weighted - a.weighted);
-  }, [roiMatrix, roiWeights]);
-
-  const maxDeptTotal = Math.max(...deptTotals.map(d => d.weighted), 1);
-  const lockedCount = assets.filter(a => a.is_locked).length;
+  const visibleDepartments = useMemo(
+    () => DEPARTMENTS.filter((department) => (deptCounts[department] || 0) > 0),
+    [deptCounts],
+  );
 
   // Department bar chart data
   const deptBarData = useMemo(() => 
-    DEPARTMENTS.filter(d => deptCounts[d] > 0).map(d => ({
-      name: d.length > 8 ? d.substring(0, 8) + '…' : d,
+    visibleDepartments.map(d => ({
+      name: d,
       fullName: d,
       count: deptCounts[d],
       fill: DEPT_COLORS[d],
-    })), [deptCounts]);
+    })), [deptCounts, visibleDepartments]);
+
+  const primaryBenefitByAsset = useMemo(() => {
+    const factsByAsset = new Map<string, DbROIFact[]>();
+
+    facts.forEach((fact) => {
+      const existing = factsByAsset.get(fact.asset_id) || [];
+      existing.push(fact);
+      factsByAsset.set(fact.asset_id, existing);
+    });
+
+    const primaryMap = new Map<string, ROICategory | null>();
+
+    assets.forEach((asset) => {
+      const assetFacts = factsByAsset.get(asset.id) || [];
+      const primaryFact = assetFacts
+        .filter((fact) => ROI_CATEGORIES.includes(fact.category as ROICategory))
+        .sort((left, right) => Math.abs(Number(right.value)) - Math.abs(Number(left.value)))[0];
+
+      primaryMap.set(asset.id, primaryFact ? (primaryFact.category as ROICategory) : null);
+    });
+
+    return primaryMap;
+  }, [assets, facts]);
+
+  const catalogueVelocityData = useMemo(() => {
+    if (assets.length === 0) {
+      return [];
+    }
+
+    const latestAssetDate = assets.reduce((latest, asset) => {
+      const assetDate = new Date(asset.created_at);
+      return assetDate > latest ? assetDate : latest;
+    }, new Date(assets[0].created_at));
+
+    const monthKeys = Array.from({ length: 6 }, (_, index) => {
+      const date = new Date(latestAssetDate.getFullYear(), latestAssetDate.getMonth() - (5 - index), 1);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    });
+
+    const rows = monthKeys.map((monthKey) => ({
+      month: formatMonthLabel(monthKey),
+      monthKey,
+      total: 0,
+      ...Object.fromEntries(ROI_CATEGORIES.map((category) => [category, 0])),
+    })) as Array<{ month: string; monthKey: string; total: number } & Record<ROICategory, number>>;
+
+    const rowMap = new Map(rows.map((row) => [row.monthKey, row]));
+
+    assets.forEach((asset) => {
+      const monthKey = getMonthKey(asset.created_at);
+      const row = rowMap.get(monthKey);
+      if (!row) {
+        return;
+      }
+
+      row.total += 1;
+
+      const primaryBenefit = primaryBenefitByAsset.get(asset.id);
+      if (primaryBenefit) {
+        row[primaryBenefit] += 1;
+      }
+    });
+
+    return rows;
+  }, [assets, primaryBenefitByAsset]);
+
+  const engagementData = useMemo(() => {
+    const assetDepartmentMap = new Map(assets.map((asset) => [asset.id, asset.department]));
+    const approvedCountByDepartment = Object.fromEntries(
+      visibleDepartments.map((department) => [department, 0]),
+    ) as Record<Department, number>;
+
+    assets.forEach((asset) => {
+      if (asset.status === 'approved' && approvedCountByDepartment[asset.department] !== undefined) {
+        approvedCountByDepartment[asset.department] += 1;
+      }
+    });
+
+    const executeLogs = auditLogs.filter((log) => log.action === 'execute_prompt' && !!log.target_id);
+    const actualReuseCounts = Object.fromEntries(
+      visibleDepartments.map((department) => [department, 0]),
+    ) as Record<Department, number>;
+
+    executeLogs.forEach((log) => {
+      const department = assetDepartmentMap.get(log.target_id as string) as Department | undefined;
+      if (department && actualReuseCounts[department] !== undefined) {
+        actualReuseCounts[department] += 1;
+      }
+    });
+
+    const hasActualReuses = executeLogs.length > 0;
+
+    return visibleDepartments.map((department) => ({
+      department,
+      assets: deptCounts[department] || 0,
+      reuses: hasActualReuses ? actualReuseCounts[department] : approvedCountByDepartment[department] * 3,
+    }));
+  }, [assets, auditLogs, deptCounts, visibleDepartments]);
 
   const benefitPromptMatrix = useMemo(() => {
     const assetDepartmentMap = new Map(assets.map((asset) => [asset.id, asset.department]));
@@ -126,11 +191,6 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
       ]),
     ) as Record<Department, Record<ROICategory, Set<string>>>;
 
-    const promptsWithBenefitsByDepartment = Object.fromEntries(
-      DEPARTMENTS.map((department) => [department, new Set<string>()]),
-    ) as Record<Department, Set<string>>;
-    const promptsWithBenefits = new Set<string>();
-
     facts.forEach((fact) => {
       const department = assetDepartmentMap.get(fact.asset_id) as Department | undefined;
       const category = fact.category as ROICategory;
@@ -140,35 +200,29 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
       }
 
       matrix[department][category].add(fact.asset_id);
-      promptsWithBenefitsByDepartment[department].add(fact.asset_id);
-      promptsWithBenefits.add(fact.asset_id);
     });
+
+    const deptTotals = Object.fromEntries(
+      visibleDepartments.map((department) => [
+        department,
+        ROI_CATEGORIES.reduce((sum, category) => sum + matrix[department][category].size, 0),
+      ]),
+    ) as Record<Department, number>;
+
+    const categoryTotals = Object.fromEntries(
+      ROI_CATEGORIES.map((category) => [
+        category,
+        visibleDepartments.reduce((sum, department) => sum + matrix[department][category].size, 0),
+      ]),
+    ) as Record<ROICategory, number>;
 
     return {
       matrix,
-      deptTotals: Object.fromEntries(
-        DEPARTMENTS.map((department) => [department, promptsWithBenefitsByDepartment[department].size]),
-      ) as Record<Department, number>,
-      categoryTotals: Object.fromEntries(
-        ROI_CATEGORIES.map((category) => [
-          category,
-          DEPARTMENTS.reduce((sum, department) => sum + matrix[department][category].size, 0),
-        ]),
-      ) as Record<ROICategory, number>,
-      totalPrompts: promptsWithBenefits.size,
+      deptTotals,
+      categoryTotals,
+      grandTotal: Object.values(categoryTotals).reduce((sum, value) => sum + value, 0),
     };
-  }, [assets, facts]);
-
-  const promptMetrics = useMemo(() => {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    return {
-      totalPrompts: assets.length,
-      promptsLastMonth: assets.filter((asset) => new Date(asset.created_at) >= thirtyDaysAgo).length,
-      promptReuse: assets.filter((asset) => asset.version > 1).length,
-    };
-  }, [assets]);
+  }, [assets, facts, visibleDepartments]);
 
   if (loading) {
     return <div className="flex justify-center py-12"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
@@ -176,97 +230,58 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
-        <Card className="metric-card">
-          <CardHeader className="pb-2 p-4">
-            <CardDescription className="flex items-center gap-2 text-xs"><DollarSign className="h-3.5 w-3.5" />Enterprise Value</CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary font-mono truncate">${totalValue.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card className="metric-card">
-          <CardHeader className="pb-2 p-4">
-            <CardDescription className="flex items-center gap-2 text-xs"><GitBranch className="h-3.5 w-3.5" />Total Assets</CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground font-mono">{assets.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">{lockedCount} locked</p>
-          </CardContent>
-        </Card>
-        <Card className="metric-card">
-          <CardHeader className="pb-2 p-4">
-            <CardDescription className="flex items-center gap-2 text-xs"><Activity className="h-3.5 w-3.5" />Versions</CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground font-mono">{versionCount}</p>
-            <p className="text-xs text-muted-foreground mt-1">Avg {(versionCount / Math.max(assets.length, 1)).toFixed(1)}/asset</p>
-          </CardContent>
-        </Card>
-        <Card className="metric-card">
-          <CardHeader className="pb-2 p-4">
-            <CardDescription className="flex items-center gap-2 text-xs"><Shield className="h-3.5 w-3.5" />Security</CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="flex items-center gap-2 flex-wrap mt-1">
-              <span className="text-xs flex items-center gap-1"><CheckCircle className="h-3 w-3 text-status-green" />{securityStats.green}</span>
-              <span className="text-xs flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-status-amber" />{securityStats.amber}</span>
-              <span className="text-xs flex items-center gap-1"><XCircle className="h-3 w-3 text-status-red" />{securityStats.red}</span>
-              <span className="text-xs flex items-center gap-1"><Clock className="h-3 w-3 text-muted-foreground" />{securityStats.pending}</span>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="metric-card sm:col-span-2 lg:col-span-1">
-          <CardHeader className="pb-2 p-4">
-            <CardDescription className="flex items-center gap-2 text-xs"><Users className="h-3.5 w-3.5" />Users</CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground font-mono">{userCount}</p>
-            <p className="text-xs text-muted-foreground mt-1">Registered users</p>
-          </CardContent>
-        </Card>
-      </div>
-
       <div className="grid gap-6 grid-cols-1 grid-cols-1 grid-cols-1 lg:grid-cols-2">
-        {/* Sunburst */}
+        {/* Catalogue Velocity */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base"><GitBranch className="h-5 w-5 text-primary" />Asset Lineage Sunburst</CardTitle>
-            <CardDescription className="text-xs">Inner ring: departments · Outer ring: individual assets</CardDescription>
+            <CardTitle className="flex items-center gap-2 text-base"><BarChart3 className="h-5 w-5 text-primary" />Catalogue Velocity</CardTitle>
+            <CardDescription className="text-xs">Monthly prompt creation volume for the last six months, colour-coded by primary benefit category.</CardDescription>
           </CardHeader>
           <CardContent>
-            {assets.length > 0 ? (
+            {catalogueVelocityData.length > 0 ? (
               <>
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={sunburstData.innerRing} cx="50%" cy="50%" innerRadius={40} outerRadius={80} dataKey="value" stroke="hsl(var(--border))" strokeWidth={2}>
-                        {sunburstData.innerRing.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-                      </Pie>
-                      <Pie data={sunburstData.outerRing} cx="50%" cy="50%" innerRadius={85} outerRadius={120} dataKey="value" stroke="hsl(var(--border))" strokeWidth={1}>
-                        {sunburstData.outerRing.map((entry, i) => <Cell key={i} fill={entry.fill} opacity={entry.hasChildren ? 1 : 0.7} />)}
-                      </Pie>
+                    <BarChart data={catalogueVelocityData} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                      <Legend wrapperStyle={{ fontSize: '12px' }} />
                       <Tooltip content={({ payload }) => {
                         if (!payload?.[0]) return null;
-                        const data = payload[0].payload;
+                        const data = payload[0].payload as { month: string; total: number } & Record<ROICategory, number>;
                         return (
                           <div className="rounded-lg border border-border bg-card p-3 shadow-lg text-xs">
-                            <p className="font-semibold">{data.fullTitle || data.name}</p>
-                            {data.department && <p className="text-muted-foreground">{data.department}</p>}
-                            {data.version && <p className="text-muted-foreground">v{data.version}</p>}
-                            <p className="text-primary">{data.value} {data.value === 1 ? 'asset' : 'assets'}</p>
+                            <p className="font-semibold">{data.month}</p>
+                            <p className="text-muted-foreground">{data.total} prompt{data.total === 1 ? '' : 's'} created</p>
+                            <div className="mt-2 space-y-1">
+                              {ROI_CATEGORIES.map((category) => (
+                                <div key={category} className="flex items-center justify-between gap-4">
+                                  <span>{category}</span>
+                                  <span className="font-medium">{data[category] || 0}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         );
                       }} />
-                    </PieChart>
+                      {ROI_CATEGORIES.map((category) => (
+                        <Bar
+                          key={category}
+                          dataKey={category}
+                          stackId="velocity"
+                          fill={ROI_CATEGORY_COLORS[category]}
+                          radius={category === ROI_CATEGORIES[ROI_CATEGORIES.length - 1] ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                        />
+                      ))}
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {DEPARTMENTS.filter(d => sunburstData.innerRing.some(t => t.name === d)).map(dept => (
-                    <div key={dept} className="flex items-center gap-1.5 text-xs">
-                      <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: DEPT_COLORS[dept] }} />
-                      <span className="text-muted-foreground">{dept}</span>
+                  {ROI_CATEGORIES.map((category) => (
+                    <div key={category} className="flex items-center gap-1.5 text-xs">
+                      <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: ROI_CATEGORY_COLORS[category] }} />
+                      <span className="text-muted-foreground">{category}</span>
                     </div>
                   ))}
                 </div>
@@ -282,15 +297,17 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base"><Building2 className="h-5 w-5 text-primary" />Assets by Department</CardTitle>
+              <CardDescription className="text-xs">Only departments with created assets are shown.</CardDescription>
             </CardHeader>
             <CardContent>
               {deptBarData.length > 0 ? (
-                <div className="h-[200px]">
+                <>
+                  <div className="h-[220px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={deptBarData} layout="vertical" margin={{ left: 0, right: 16 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
                       <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                      <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} width={70} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} width={92} />
                       <Tooltip content={({ payload }) => {
                         if (!payload?.[0]) return null;
                         const d = payload[0].payload;
@@ -301,7 +318,16 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
-                </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    {deptBarData.map((department) => (
+                      <div key={department.fullName} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: department.fill }} />
+                        <span>{department.fullName}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
               ) : <p className="text-sm text-muted-foreground text-center py-4">No data.</p>}
             </CardContent>
           </Card>
@@ -341,58 +367,53 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
         </div>
       </div>
 
-      {/* Benefits by Department */}
+      {/* Asset Engagement Overview */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base"><TrendingUp className="h-5 w-5 text-primary" />Benefits by Department</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base"><Activity className="h-5 w-5 text-primary" />Asset Engagement Overview</CardTitle>
+          <CardDescription className="text-xs">Compares asset volume by department against prompt reuse activity from execute clicks.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {deptTotals.filter(d => d.total > 0).map(({ dept, total, weighted }) => (
-            <div key={dept} className="space-y-1">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-xs">{dept}</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-muted-foreground">${total.toLocaleString()}</span>
-                  {weighted !== total && (
-                    <span className="font-mono text-xs text-primary">(weighted: ${weighted.toLocaleString()})</span>
-                  )}
-                </div>
+        <CardContent>
+          {engagementData.length > 0 ? (
+            <>
+              <div className="h-[280px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={engagementData} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="department" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                    <Legend wrapperStyle={{ fontSize: '12px' }} />
+                    <Tooltip content={({ payload }) => {
+                      if (!payload?.[0]) return null;
+                      const data = payload[0].payload as { department: string; assets: number; reuses: number };
+                      return (
+                        <div className="rounded-lg border border-border bg-card p-3 shadow-lg text-xs">
+                          <p className="font-semibold">{data.department}</p>
+                          <div className="mt-2 space-y-1">
+                            <div className="flex items-center justify-between gap-4">
+                              <span>Assets</span>
+                              <span className="font-medium">{data.assets}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <span>Reuses</span>
+                              <span className="font-medium">{data.reuses}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }} />
+                    <Bar dataKey="assets" name="Assets" fill="#00DFD4" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="reuses" name="Reuses" fill="#EC4899" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-              <Progress value={(weighted / maxDeptTotal) * 100} className="h-1.5" />
-            </div>
-          ))}
-          {deptTotals.every(d => d.total === 0) && (
-            <p className="text-sm text-muted-foreground text-center py-4">No benefit data yet.</p>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Reuses are based on execute clicks. When no clicks are logged yet, demo data falls back to 3x approved assets by department.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">No engagement data yet.</p>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Prompt Summary */}
-      <Card className="synphera-border-glow">
-        <CardContent className="py-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-card/50 px-4 py-3">
-              <Activity className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-xs text-muted-foreground">Total number of prompt</p>
-                <p className="text-2xl font-bold font-mono text-primary">{promptMetrics.totalPrompts}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-card/50 px-4 py-3">
-              <Clock className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-xs text-muted-foreground">Total prompt created last month</p>
-                <p className="text-2xl font-bold font-mono text-primary">{promptMetrics.promptsLastMonth}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-card/50 px-4 py-3">
-              <GitBranch className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-xs text-muted-foreground">Total prompt reuse</p>
-                <p className="text-2xl font-bold font-mono text-primary">{promptMetrics.promptReuse}</p>
-              </div>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
@@ -400,7 +421,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base"><DollarSign className="h-5 w-5 text-primary" />Benefit Matrix by Categories</CardTitle>
-          <CardDescription className="text-xs">Counts distinct prompts tagged with each benefit category by department.</CardDescription>
+          <CardDescription className="text-xs">Shows benefit entries using the same categories as the create screen. Only departments with created prompts are included.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto -mx-6 px-6">
@@ -415,7 +436,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
                 </tr>
               </thead>
               <tbody>
-                {DEPARTMENTS.map(dept => {
+                {visibleDepartments.map(dept => {
                   const deptTotal = benefitPromptMatrix.deptTotals[dept];
                   if (deptTotal === 0) return null;
                   return (
@@ -433,12 +454,12 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
               </tbody>
               <tfoot>
                 <tr className="bg-muted/30">
-                  <td className="py-2.5 px-3 font-semibold text-sm">Total Prompts</td>
+                  <td className="py-2.5 px-3 font-semibold text-sm">Total</td>
                   {ROI_CATEGORIES.map(cat => {
                     const catTotal = benefitPromptMatrix.categoryTotals[cat];
                     return <td key={cat} className="py-2.5 px-3 roi-cell font-semibold text-muted-foreground text-sm">{catTotal.toLocaleString()}</td>;
                   })}
-                  <td className="py-2.5 px-3 roi-cell font-bold text-primary text-lg">{benefitPromptMatrix.totalPrompts.toLocaleString()}</td>
+                  <td className="py-2.5 px-3 roi-cell font-bold text-primary text-lg">{benefitPromptMatrix.grandTotal.toLocaleString()}</td>
                 </tr>
               </tfoot>
             </table>
