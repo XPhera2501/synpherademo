@@ -1,6 +1,8 @@
 // Prompt best-practice validation engine + Prompt Determinism Analyzer
 // (Ported from Prompt_Analyzer_2.py)
 
+import { analyzeBusinessOutcome, type BusinessOutcomeAnalysis } from '@/lib/business-outcome-analyzer';
+
 export interface ValidationCheck {
   name: string;
   passed: boolean;
@@ -23,6 +25,7 @@ export interface PromptAnalysis {
   flags: Record<string, boolean>;
   components: { instructions: string[]; constraints: string[]; context: string[] };
   routing: { allocation: Record<string, number>; rationale: Record<string, string> };
+  businessOutcome: BusinessOutcomeAnalysis;
 }
 
 const REGEX_PATTERNS: Record<string, RegExp> = {
@@ -138,6 +141,7 @@ export function analyzePrompt(prompt: string): PromptAnalysis {
   const scores = scoreAxes(prompt, taskType);
   const determinismScore = computeDeterminismScore(scores);
   const p = prompt.toLowerCase();
+  const businessOutcome = analyzeBusinessOutcome(prompt);
 
   const flags: Record<string, boolean> = {
     'PII Detected': REGEX_PATTERNS.pii.test(p),
@@ -147,7 +151,7 @@ export function analyzePrompt(prompt: string): PromptAnalysis {
 
   const routing = recommendRouting(determinismScore, scores, taskType, flags);
 
-  return { taskType, scores, determinismScore, flags, components, routing };
+  return { taskType, scores, determinismScore, flags, components, routing, businessOutcome };
 }
 
 // ============================================================

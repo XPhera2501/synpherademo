@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { getAssets, getROIFacts, getAssetCountByDepartment, getAuditLogs, type DbPromptAsset, type DbROIFact, type DbAuditLog } from '@/lib/supabase-store';
+import { extractSavedBusinessOutcome, type BusinessOutcomeCategory } from '@/lib/business-outcome-analyzer';
 import { DEPARTMENTS, ROI_CATEGORIES, Department, ROICategory } from '@/lib/synphera-types';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import { BarChart3, DollarSign, Building2, Shield, Activity } from 'lucide-react';
@@ -24,6 +26,14 @@ const ROI_CATEGORY_COLORS: Record<ROICategory, string> = {
   'Efficiency': '#10B981',
   'Cost Savings': '#F59E0B',
   'New Value': '#EC4899',
+};
+
+const OUTCOME_COLORS: Record<BusinessOutcomeCategory, string> = {
+  'Cost Savings': '#F59E0B',
+  'Compliance Improvement': '#6366F1',
+  'Operational Velocity Improvement': '#00DFD4',
+  'Risk Level Reduction': '#EF4444',
+  'Revenue Increase': '#EC4899',
 };
 
 function getMonthKey(dateValue: string) {
@@ -224,6 +234,44 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
     };
   }, [assets, facts, visibleDepartments]);
 
+  const savedOutcomeData = useMemo(() => {
+    const rows = new Map<BusinessOutcomeCategory, { outcome: BusinessOutcomeCategory; assets: number; averageConfidence: number; fill: string }>();
+    let classifiedAssets = 0;
+
+    assets.forEach((asset) => {
+      const semanticClassification = extractSavedBusinessOutcome(asset.metadata);
+      if (!semanticClassification || semanticClassification.primaryBenefit === 'Unclassified') {
+        return;
+      }
+
+      classifiedAssets += 1;
+      const outcome = semanticClassification.primaryBenefit as BusinessOutcomeCategory;
+      const current = rows.get(outcome) || {
+        outcome,
+        assets: 0,
+        averageConfidence: 0,
+        fill: OUTCOME_COLORS[outcome],
+      };
+
+      current.assets += 1;
+      current.averageConfidence += semanticClassification.primaryConfidence;
+      rows.set(outcome, current);
+    });
+
+    const distribution = Array.from(rows.values())
+      .map((row) => ({
+        ...row,
+        averageConfidence: row.assets > 0 ? row.averageConfidence / row.assets : 0,
+      }))
+      .sort((left, right) => right.assets - left.assets);
+
+    return {
+      classifiedAssets,
+      totalAssets: assets.length,
+      distribution,
+    };
+  }, [assets]);
+
   if (loading) {
     return <div className="flex justify-center py-12"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
@@ -413,6 +461,66 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
             </>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-4">No engagement data yet.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base"><BarChart3 className="h-5 w-5 text-primary" />Saved Semantic Classification</CardTitle>
+          <CardDescription className="text-xs">Distribution of the primary business outcomes saved with prompt metadata.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {savedOutcomeData.distribution.length > 0 ? (
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+              <div className="h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={savedOutcomeData.distribution} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="outcome" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} interval={0} angle={-12} textAnchor="end" height={58} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                    <Tooltip content={({ payload }) => {
+                      if (!payload?.[0]) return null;
+                      const data = payload[0].payload as { outcome: string; assets: number; averageConfidence: number };
+                      return (
+                        <div className="rounded-lg border border-border bg-card p-3 shadow-lg text-xs">
+                          <p className="font-semibold">{data.outcome}</p>
+                          <div className="mt-2 space-y-1">
+                            <div className="flex items-center justify-between gap-4">
+                              <span>Assets</span>
+                              <span className="font-medium">{data.assets}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <span>Avg confidence</span>
+                              <span className="font-medium">{(data.averageConfidence * 100).toFixed(1)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }} />
+                    <Bar dataKey="assets" radius={[4, 4, 0, 0]}>
+                      {savedOutcomeData.distribution.map((entry) => <Cell key={entry.outcome} fill={entry.fill} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-3">
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Coverage</p>
+                  <p className="mt-1 text-2xl font-semibold">{savedOutcomeData.classifiedAssets} / {savedOutcomeData.totalAssets}</p>
+                  <p className="text-xs text-muted-foreground">Assets with saved semantic classifications</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {savedOutcomeData.distribution.map((entry) => (
+                    <Badge key={entry.outcome} variant="outline" className="text-[10px]">
+                      {entry.outcome}: {(entry.averageConfidence * 100).toFixed(0)}%
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">No saved semantic classifications yet.</p>
           )}
         </CardContent>
       </Card>

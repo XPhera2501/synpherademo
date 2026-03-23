@@ -28,6 +28,7 @@ export interface PromptAssetMetadata {
   scores?: Record<string, number>;
   flags?: Record<string, boolean>;
   routing?: Json;
+  semanticClassification?: Json;
   profileSummary?: Json;
 }
 

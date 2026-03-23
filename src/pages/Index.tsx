@@ -24,6 +24,7 @@ export default function Index() {
   const [activeTab, setActiveTab] = useState('creation');
   const [creationSeed, setCreationSeed] = useState<CreationSeed | null>(null);
   const { isAdmin, canEdit } = useAuth();
+  const showHeader = activeTab === 'creation' || activeTab === 'validate' || activeTab === 'catalogue' || activeTab === 'dashboard';
   
   const handleRefresh = () => setRefreshKey(prev => prev + 1);
   const handleLoadIntoCreation = (seed: CreationSeed) => {
@@ -33,7 +34,7 @@ export default function Index() {
   
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header refreshKey={refreshKey} />
+      {showHeader && <Header refreshKey={refreshKey} />}
       
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-6 flex-1 w-full">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">

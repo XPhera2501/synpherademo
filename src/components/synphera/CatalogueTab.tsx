@@ -15,6 +15,7 @@ import {
   addAuditLog, getAssets, getProfiles, getROIFacts, updateAssetWithVersioning,
   type DbPromptAsset, type DbProfile, type DbROIFact
 } from '@/lib/supabase-store';
+import { extractSavedBusinessOutcome } from '@/lib/business-outcome-analyzer';
 import { DEPARTMENTS } from '@/lib/synphera-types';
 import type { SecurityStatus } from '@/lib/synphera-types';
 import { Search, Filter, Clock, Lock, Tag, Library, Copy, Play, Eye, Pencil } from 'lucide-react';
@@ -70,6 +71,10 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
   }, [facts]);
 
   const categories = useMemo(() => [...new Set(assets.map(a => a.category).filter(Boolean))], [assets]);
+  const selectedSemanticClassification = useMemo(
+    () => (selectedAsset ? extractSavedBusinessOutcome(selectedAsset.metadata) : null),
+    [selectedAsset],
+  );
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
     assets.forEach(a => a.tags?.forEach(t => tagSet.add(t)));
@@ -256,6 +261,10 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
         {filteredAssets.map(asset => (
           <Card key={asset.id} className="hover:border-primary/20 transition-colors">
             <CardContent className="p-4">
+              {(() => {
+                const semanticClassification = extractSavedBusinessOutcome(asset.metadata);
+
+                return (
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -263,11 +272,26 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
                     <span className="font-medium text-sm truncate">{asset.title}</span>
                     <span className="text-xs text-muted-foreground truncate">{getPromptSubject(asset.content)}</span>
                     <Badge variant={asset.status === 'approved' ? 'default' : 'outline'} className="text-[10px] capitalize">{asset.status.replace('_', ' ')}</Badge>
+                    {semanticClassification && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {semanticClassification.primaryBenefit} {(semanticClassification.primaryConfidence * 100).toFixed(0)}%
+                      </Badge>
+                    )}
                     <span>•</span>
                     <span>{profileMap.get(asset.created_by) || 'Unknown'}</span>
                     <span>•</span>
                     <span>{format(new Date(asset.created_at), 'MMM d, yyyy')}</span>
                   </div>
+                  {semanticClassification && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      {semanticClassification.roiCategorySuggestions.map((category) => (
+                        <Badge key={`${asset.id}-${category}`} variant="outline" className="text-[10px]">
+                          ROI: {category}
+                        </Badge>
+                      ))}
+                      <span className="line-clamp-1">{semanticClassification.guidance}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col gap-1 flex-shrink-0 items-end">
                   <Button variant="ghost" size="sm" className="h-7 text-xs gap-1"
@@ -286,6 +310,8 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
                   </Button>
                 </div>
               </div>
+                );
+              })()}
               {expandedHistory === asset.id && (
                 <div className="mt-3 pt-3 border-t border-border animate-fade-in-up space-y-3">
                   <div className="flex flex-wrap gap-2">
@@ -322,6 +348,25 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
                   <DialogTitle>{isOwner(selectedAsset) ? 'Edit Prompt' : 'View Prompt'}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
+                  {selectedSemanticClassification && (
+                    <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary">{selectedSemanticClassification.primaryBenefit}</Badge>
+                        <Badge variant="outline">{(selectedSemanticClassification.primaryConfidence * 100).toFixed(1)}% confidence</Badge>
+                        {selectedSemanticClassification.ambiguityFlag && <Badge variant="outline">Ambiguous mix</Badge>}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{selectedSemanticClassification.guidance}</p>
+                      {selectedSemanticClassification.domainSignals.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedSemanticClassification.domainSignals.map((signal) => (
+                            <Badge key={signal.domain} variant="outline" className="text-[10px]">
+                              {signal.domain}: {signal.count}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium">Prompt Subject</Label>
                     <Input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} readOnly={!isOwner(selectedAsset)} />

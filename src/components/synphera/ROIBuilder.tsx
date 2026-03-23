@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ROICategory, ROI_CATEGORIES } from '@/lib/synphera-types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,21 +17,23 @@ interface ROIBuilderProps {
   entries: ROIEntry[];
   onChange: (entries: ROIEntry[]) => void;
   department?: string;
+  autoOpenCategory?: ROICategory | null;
+  onAutoOpenHandled?: () => void;
 }
 
-export function ROIBuilder({ entries, onChange, department }: ROIBuilderProps) {
+export function ROIBuilder({ entries, onChange, department, autoOpenCategory, onAutoOpenHandled }: ROIBuilderProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<ROICategory | null>(null);
   const [editValue, setEditValue] = useState<number>(0);
   const [editDescription, setEditDescription] = useState('');
 
-  const openCategoryDialog = (category: ROICategory) => {
+  const openCategoryDialog = useCallback((category: ROICategory) => {
     const existing = entries.find(e => e.category === category);
     setSelectedCategory(category);
     setEditValue(existing?.value || 0);
     setEditDescription(existing?.description || '');
     setDialogOpen(true);
-  };
+  }, [entries]);
 
   const handleSaveBenefit = () => {
     if (!selectedCategory) return;
@@ -48,6 +50,15 @@ export function ROIBuilder({ entries, onChange, department }: ROIBuilderProps) {
     onChange(entries.filter(e => e.category !== selectedCategory));
     setDialogOpen(false);
   };
+
+  useEffect(() => {
+    if (!autoOpenCategory) {
+      return;
+    }
+
+    openCategoryDialog(autoOpenCategory);
+    onAutoOpenHandled?.();
+  }, [autoOpenCategory, openCategoryDialog, onAutoOpenHandled]);
 
   return (
     <div className="space-y-3">

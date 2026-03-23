@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ROICategory, ScanResult } from '@/lib/synphera-types';
 import { runSecurityScan } from '@/lib/security-scanner';
 import { validatePromptBestPractices, analyzePrompt, type ValidationResult, type PromptAnalysis } from '@/lib/prompt-validator';
+import { buildSuggestedROIEntries } from '@/lib/business-outcome-analyzer';
 import { createAsset, saveROIFact, addAuditLog } from '@/lib/supabase-store';
 import type { DepartmentEnum, AssetStatusEnum, PromptAssetMetadata } from '@/lib/supabase-store';
 import { ScanResultPanel } from './ScanResultPanel';
@@ -124,6 +125,7 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
   const [isSaving, setIsSaving] = useState(false);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [analysis, setAnalysis] = useState<PromptAnalysis | null>(null);
+  const [autoOpenRoiCategory, setAutoOpenRoiCategory] = useState<ROICategory | null>(null);
 
   // Compliance
   const [selectedFrameworks, setSelectedFrameworks] = useState<string[]>([]);
@@ -131,6 +133,18 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
   const [complianceValidated, setComplianceValidated] = useState(false);
 
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+
+  const suggestedRoiEntries = useMemo(
+    () => (analysis ? buildSuggestedROIEntries(analysis.businessOutcome) : []),
+    [analysis],
+  );
+
+  const unappliedSuggestedEntries = useMemo(
+    () => suggestedRoiEntries.filter(
+      (suggestion) => !roiEntries.some((entry) => entry.category === suggestion.category),
+    ),
+    [roiEntries, suggestedRoiEntries],
+  );
 
   useEffect(() => {
     if (profile?.department) {
@@ -142,6 +156,7 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
     setContent(val);
     setComplianceResults([]);
     setComplianceValidated(false);
+    setAnalysis(null);
     if (val.length > 20) {
       setValidation(validatePromptBestPractices(val, title));
     } else {
@@ -161,6 +176,7 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
     setCommitMessage('');
     setValidation(null);
     setAnalysis(null);
+    setAutoOpenRoiCategory(null);
     setSelectedFrameworks([]);
     setComplianceResults([]);
     setComplianceValidated(false);
@@ -263,6 +279,24 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
     else toast.error('Critical issues found. Remediate content.');
   };
 
+  const handleApplySuggestedROI = () => {
+    if (unappliedSuggestedEntries.length === 0) {
+      toast.info('All suggested ROI categories are already present.');
+      return;
+    }
+
+    setRoiEntries((currentEntries) => [
+      ...currentEntries,
+      ...unappliedSuggestedEntries.map((suggestion) => ({
+        category: suggestion.category,
+        value: 0,
+        description: suggestion.description,
+      })),
+    ]);
+    setAutoOpenRoiCategory(unappliedSuggestedEntries[0].category);
+    toast.success('Suggested ROI entries added for review. Add values before saving them as ROI facts.');
+  };
+
   // Build metadata including profile summary
   const buildMetadata = (): PromptAssetMetadata => {
     const benefitSummary = roiEntries.filter(e => e.value !== 0).map(e => ({
@@ -278,6 +312,7 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
         scores: analysis.scores,
         flags: analysis.flags,
         routing: analysis.routing,
+        semanticClassification: analysis.businessOutcome,
       } : {}),
       profileSummary: {
         company: 'X-Phera',
@@ -403,6 +438,7 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
     setTitle(''); setContent(''); setRoiEntries([]);
     setJustification(''); setCommitMessage(''); setScanResult(null);
     setValidation(null); setAnalysis(null);
+    setAutoOpenRoiCategory(null);
     setSelectedFrameworks([]); setComplianceResults([]); setComplianceValidated(false);
   };
 
@@ -464,8 +500,45 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
           <CardHeader className="pb-2 px-4 pt-4">
             <CardTitle className="text-base font-semibold">Benefits</CardTitle>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <ROIBuilder entries={roiEntries} onChange={setRoiEntries} department={department} />
+          <CardContent className="px-4 pb-4 space-y-4">
+            <ROIBuilder
+              entries={roiEntries}
+              onChange={setRoiEntries}
+              department={department}
+              autoOpenCategory={autoOpenRoiCategory}
+              onAutoOpenHandled={() => setAutoOpenRoiCategory(null)}
+            />
+            {suggestedRoiEntries.length > 0 && (
+              <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">Classifier ROI Suggestions</p>
+                    <p className="text-xs text-muted-foreground">Review and approve suggested categories from the semantic classifier.</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleApplySuggestedROI}
+                    disabled={unappliedSuggestedEntries.length === 0}
+                  >
+                    {unappliedSuggestedEntries.length === 0 ? 'Applied' : 'Apply Suggestions'}
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {suggestedRoiEntries.map((suggestion) => {
+                    const alreadyApplied = roiEntries.some((entry) => entry.category === suggestion.category);
+                    return (
+                      <Badge key={suggestion.category} variant={alreadyApplied ? 'secondary' : 'outline'} className="text-[10px]">
+                        {suggestion.category}{alreadyApplied ? ' Added' : ' Suggested'}
+                      </Badge>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Approved suggestions populate the Benefits table with descriptions. Enter a non-zero value to save them as ROI facts.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -617,6 +690,25 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
                     <span className="text-xs font-medium text-muted-foreground">Task Classification</span>
                     <p className="text-sm font-semibold">{analysis.taskType}</p>
                   </div>
+                  <div className="rounded-lg border p-3 space-y-2">
+                    <span className="text-xs font-medium text-muted-foreground">Primary Business Outcome</span>
+                    <p className="text-sm font-semibold">{analysis.businessOutcome.primaryBenefit}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{(analysis.businessOutcome.primaryConfidence * 100).toFixed(1)}% confidence</span>
+                      {analysis.businessOutcome.ambiguityFlag && (
+                        <Badge variant="outline" className="text-[10px]">Ambiguous mix</Badge>
+                      )}
+                    </div>
+                    {analysis.businessOutcome.roiCategorySuggestions.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {analysis.businessOutcome.roiCategorySuggestions.map((category) => (
+                          <Badge key={category} variant="secondary" className="text-[10px]">
+                            Suggested ROI: {category}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className="rounded-lg border p-3 space-y-1">
                     <span className="text-xs font-medium text-muted-foreground">Determinism Score</span>
                     <p className="text-sm font-semibold">{analysis.determinismScore} / 100</p>
@@ -639,6 +731,45 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
                       </p>
                     ))}
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-xs font-medium text-muted-foreground">Business Outcome Ranking</span>
+                  <div className="grid gap-2">
+                    {analysis.businessOutcome.benefitRanking.map((result) => (
+                      <div key={result.category} className="rounded-lg border p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium">{result.category}</p>
+                            <p className="text-xs text-muted-foreground">{(result.confidence * 100).toFixed(1)}% confidence</p>
+                          </div>
+                          <div className="flex flex-wrap justify-end gap-1">
+                            {result.suggestedRoiCategories.map((category) => (
+                              <Badge key={`${result.category}-${category}`} variant="outline" className="text-[10px]">
+                                {category}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-xs font-medium text-muted-foreground">Classifier Guidance</span>
+                  <div className="rounded-lg border p-3 text-sm text-muted-foreground">
+                    {analysis.businessOutcome.guidance}
+                  </div>
+                  {analysis.businessOutcome.domainSignals.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {analysis.businessOutcome.domainSignals.map((signal) => (
+                        <Badge key={signal.domain} variant="outline" className="text-[10px]">
+                          {signal.domain}: {signal.count}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -683,7 +814,7 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
               </>
             ) : (
               <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-                Prompt analysis will appear here after you run compliance validation.
+                Prompt analysis and business outcome classification will appear here after you run compliance validation.
               </div>
             )}
           </CardContent>
