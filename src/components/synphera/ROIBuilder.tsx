@@ -19,9 +19,10 @@ interface ROIBuilderProps {
   department?: string;
   autoOpenCategory?: ROICategory | null;
   onAutoOpenHandled?: () => void;
+  outcomePercentages?: Partial<Record<ROICategory, number>>;
 }
 
-export function ROIBuilder({ entries, onChange, department, autoOpenCategory, onAutoOpenHandled }: ROIBuilderProps) {
+export function ROIBuilder({ entries, onChange, department, autoOpenCategory, onAutoOpenHandled, outcomePercentages }: ROIBuilderProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<ROICategory | null>(null);
   const [editValue, setEditValue] = useState<number>(0);
@@ -74,10 +75,22 @@ export function ROIBuilder({ entries, onChange, department, autoOpenCategory, on
           <tbody>
             {ROI_CATEGORIES.map((category) => {
               const entry = entries.find(e => e.category === category);
+              const outcomePercentage = outcomePercentages?.[category];
+              const isSuggested = typeof outcomePercentage === 'number';
               return (
-                <tr key={category} className="border-b border-border last:border-b-0 hover:bg-muted/20 cursor-pointer" onClick={() => openCategoryDialog(category)}>
+                <tr
+                  key={category}
+                  className={`border-b border-border last:border-b-0 cursor-pointer transition-colors ${isSuggested ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/20'}`}
+                  onClick={() => openCategoryDialog(category)}
+                >
                   <td className="py-2 px-3">
-                    <span className="text-sm font-medium">{category}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{category}</span>
+                      {isSuggested && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Suggested</span>}
+                    </div>
+                    {typeof outcomePercentage === 'number' && (
+                      <p className="text-[10px] text-primary mt-0.5">Outcome score: {outcomePercentage.toFixed(1)}%</p>
+                    )}
                     {entry?.description && (
                       <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{entry.description}</p>
                     )}

@@ -275,11 +275,11 @@ export default function Auth() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="viewer">Viewer</SelectItem>
-                        <SelectItem value="reviewer">Validator</SelectItem>
-                        <SelectItem value="creator">Collaborator</SelectItem>
+                        <SelectItem value="reviewer">Reviewer</SelectItem>
+                        <SelectItem value="creator">Creator</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-[10px] text-muted-foreground">Role assignment is subject to admin approval.</p>
+                    <p className="text-[10px] text-muted-foreground">Approver and admin roles are assigned by administrators after account setup.</p>
                   </div>
 
                   <div className="flex items-start gap-2">
@@ -305,7 +305,7 @@ export default function Auth() {
                     Create Account
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
-                    New accounts get the <span className="font-semibold text-primary">Creator</span> role by default.
+                    New accounts get the <span className="font-semibold text-primary">Creator</span> role by default unless an administrator assigns Viewer or Reviewer later.
                   </p>
                 </CardContent>
               </form>

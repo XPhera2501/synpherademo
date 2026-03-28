@@ -10,15 +10,16 @@ import { Label } from '@/components/ui/label';
 import { SecurityBadge } from './SecurityBadge';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 import { CommentThread } from './CommentThread';
+import { AssignForReviewDialog } from './AssignForReviewDialog';
 import { useAuth } from '@/hooks/useAuth';
 import {
   addAuditLog, getAssets, getProfiles, getROIFacts, updateAssetWithVersioning,
-  type DbPromptAsset, type DbProfile, type DbROIFact
+  type DbPromptAsset, type DbProfile, type DbROIFact, type PromptAssetMetadata, type AssetStatusEnum
 } from '@/lib/supabase-store';
 import { extractSavedBusinessOutcome } from '@/lib/business-outcome-analyzer';
 import { DEPARTMENTS } from '@/lib/synphera-types';
 import type { SecurityStatus } from '@/lib/synphera-types';
-import { Search, Filter, Clock, Lock, Tag, Library, Copy, Play, Eye, Pencil } from 'lucide-react';
+import { Search, Filter, Clock, Lock, Tag, Library, Copy, Play, PlayCircle, Eye, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import type { ROIEntry } from './ROIBuilder';
@@ -30,7 +31,7 @@ interface CatalogueTabProps {
 }
 
 export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabProps) {
-  const { user } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const [assets, setAssets] = useState<DbPromptAsset[]>([]);
   const [profiles, setProfiles] = useState<DbProfile[]>([]);
   const [facts, setFacts] = useState<DbROIFact[]>([]);
@@ -40,6 +41,8 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
   const [editContent, setEditContent] = useState('');
   const [editCommitMessage, setEditCommitMessage] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [executeDialogAsset, setExecuteDialogAsset] = useState<DbPromptAsset | null>(null);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,7 +86,10 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
 
   const filteredAssets = useMemo(() => {
     return assets.filter(a => {
-      const isVisibleInCatalogue = a.status === 'approved' || (a.status === 'draft' && a.created_by === user?.id);
+      const isVisibleInCatalogue =
+        a.status === 'approved' ||
+        (a.status === 'draft' && a.created_by === user?.id) ||
+        a.status === 'created';
       if (!isVisibleInCatalogue) return false;
       if (filterDept !== 'all' && a.department !== filterDept) return false;
       if (filterStatus !== 'all' && a.status !== filterStatus) return false;
@@ -100,7 +106,7 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
       }
       return true;
     });
-  }, [assets, filterDept, filterStatus, filterCategory, searchQuery, user?.id]);
+  }, [assets, filterDept, filterStatus, filterCategory, searchQuery, user?.id, profile?.department, isAdmin]);
 
   const openAssetDialog = (asset: DbPromptAsset) => {
     setSelectedAsset(asset);
@@ -112,9 +118,31 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
   const closeAssetDialog = () => {
     setSelectedAsset(null);
     setEditCommitMessage('');
+    setAssignDialogOpen(false);
   };
 
   const isOwner = (asset: DbPromptAsset) => asset.created_by === user?.id;
+
+  const buildReviewerWorkflowMetadata = (asset: DbPromptAsset): PromptAssetMetadata => {
+    const metadata = asset.metadata && typeof asset.metadata === 'object' && !Array.isArray(asset.metadata)
+      ? asset.metadata as PromptAssetMetadata
+      : {};
+    const workflow = metadata.workflow && typeof metadata.workflow === 'object' && !Array.isArray(metadata.workflow)
+      ? metadata.workflow
+      : {};
+
+    return {
+      ...metadata,
+      workflow: {
+        ...workflow,
+        phase: 'reviewer_review',
+        returnedBy: undefined,
+        returnedAt: undefined,
+        submittedForApprovalAt: undefined,
+        reassignedAt: new Date().toISOString(),
+      },
+    };
+  };
 
   const getPromptSubject = (content: string) => {
     const subject = content
@@ -132,14 +160,6 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
       return;
     }
 
-    onLoadIntoCreation({
-      sourceAssetId: asset.id,
-      title: mode === 'copy' ? `Copy of ${asset.title}` : asset.title,
-      content: asset.content,
-      department: asset.department,
-      roiEntries: factsByAsset.get(asset.id) || [],
-    });
-
     if (mode === 'execute') {
       await addAuditLog({
         user_id: user?.id ?? null,
@@ -148,9 +168,19 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
         target_id: asset.id,
         details: { source: 'catalogue' },
       });
+      setExecuteDialogAsset(asset);
+      return;
     }
 
-    toast.success(mode === 'copy' ? 'Prompt copied to Create' : 'Approved prompt sent back to LLM via Create');
+    onLoadIntoCreation({
+      sourceAssetId: asset.id,
+      title: mode === 'copy' ? `Copy of ${asset.title}` : asset.title,
+      content: asset.content,
+      department: asset.department,
+      roiEntries: factsByAsset.get(asset.id) || [],
+    });
+
+    toast.success('Prompt copied to Create');
   };
 
   const handleSaveEdit = async () => {
@@ -175,6 +205,71 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
       loadData();
     } else {
       toast.error('Failed to update prompt');
+    }
+
+    setIsUpdating(false);
+  };
+
+  const handleSaveToCatalogue = async () => {
+    if (!selectedAsset || !user || !isOwner(selectedAsset)) return;
+    if (!editCommitMessage.trim()) {
+      toast.error('Commit message is required');
+      return;
+    }
+
+    setIsUpdating(true);
+    const updated = await updateAssetWithVersioning(
+      selectedAsset.id,
+      {
+        title: editTitle.trim(),
+        content: editContent.trim(),
+        status: 'created' as AssetStatusEnum,
+      },
+      user.id,
+      editCommitMessage.trim(),
+      'save_to_catalogue',
+    );
+
+    if (updated) {
+      toast.success(selectedAsset.status === 'draft' ? 'Prompt moved to Created' : 'Created prompt updated');
+      closeAssetDialog();
+      loadData();
+    } else {
+      toast.error('Failed to save prompt to catalogue');
+    }
+
+    setIsUpdating(false);
+  };
+
+  const handleAssignExistingAssetForReview = async (reviewerId: string) => {
+    if (!selectedAsset || !user || !isOwner(selectedAsset)) return;
+    if (!editCommitMessage.trim()) {
+      toast.error('Commit message is required');
+      return;
+    }
+
+    setIsUpdating(true);
+    const updated = await updateAssetWithVersioning(
+      selectedAsset.id,
+      {
+        title: editTitle.trim(),
+        content: editContent.trim(),
+        status: 'in_review' as AssetStatusEnum,
+        reviewer_id: reviewerId,
+        approver_id: null,
+        metadata: buildReviewerWorkflowMetadata(selectedAsset),
+      },
+      user.id,
+      editCommitMessage.trim(),
+      'assign_for_review',
+    );
+
+    if (updated) {
+      toast.success('Prompt sent for review');
+      closeAssetDialog();
+      loadData();
+    } else {
+      toast.error('Failed to assign prompt for review');
     }
 
     setIsUpdating(false);
@@ -388,7 +483,22 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={closeAssetDialog}>Close</Button>
-                  {isOwner(selectedAsset) && (
+                  {isOwner(selectedAsset) && selectedAsset.status !== 'approved' && (
+                    <Button variant="outline" onClick={handleSaveEdit} disabled={isUpdating || !editTitle.trim() || !editContent.trim() || !editCommitMessage.trim()}>
+                      {isUpdating ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                  )}
+                  {isOwner(selectedAsset) && (selectedAsset.status === 'draft' || selectedAsset.status === 'created') && (
+                    <Button variant="outline" onClick={handleSaveToCatalogue} disabled={isUpdating || !editTitle.trim() || !editContent.trim() || !editCommitMessage.trim()}>
+                      {isUpdating ? 'Saving...' : 'Save to Catalogue'}
+                    </Button>
+                  )}
+                  {isOwner(selectedAsset) && (selectedAsset.status === 'draft' || selectedAsset.status === 'created') && (
+                    <Button onClick={() => setAssignDialogOpen(true)} disabled={isUpdating || !editTitle.trim() || !editContent.trim() || !editCommitMessage.trim()}>
+                      Assign for Review
+                    </Button>
+                  )}
+                  {isOwner(selectedAsset) && selectedAsset.status === 'approved' && (
                     <Button onClick={handleSaveEdit} disabled={isUpdating || !editTitle.trim() || !editContent.trim() || !editCommitMessage.trim()}>
                       {isUpdating ? 'Saving...' : 'Save Changes'}
                     </Button>
@@ -396,6 +506,34 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
                 </DialogFooter>
               </>
             )}
+          </DialogContent>
+        </Dialog>
+
+        <AssignForReviewDialog
+          open={assignDialogOpen}
+          onOpenChange={setAssignDialogOpen}
+          onSend={(reviewerId) => { void handleAssignExistingAssetForReview(reviewerId); }}
+        />
+
+        <Dialog open={!!executeDialogAsset} onOpenChange={(open) => { if (!open) setExecuteDialogAsset(null); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <PlayCircle className="h-5 w-5 text-primary" />
+                LLM Execution Started
+              </DialogTitle>
+            </DialogHeader>
+            {executeDialogAsset && (
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  <span className="font-medium text-foreground">{executeDialogAsset.title}</span> has been sent to the LLM flow.
+                </p>
+                <p>You will remain in Catalogue after closing this popup.</p>
+              </div>
+            )}
+            <DialogFooter>
+              <Button onClick={() => setExecuteDialogAsset(null)}>Continue</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

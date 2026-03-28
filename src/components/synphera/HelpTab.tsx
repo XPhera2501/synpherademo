@@ -115,7 +115,7 @@ export function HelpTab() {
               { icon: Tag, title: 'Tags & Categories', desc: 'Organize assets with tags and categories for faceted search and discovery.' },
               { icon: Search, title: 'Full-Text Search', desc: 'Search across titles, content, and tags with department and status filters.' },
               { icon: GitFork, title: 'Fork & Branch', desc: 'Create variations of approved assets while maintaining full lineage tracing.' },
-              { icon: Send, title: 'Submit for Review', desc: 'Assign assets to validators for approval.' },
+              { icon: Send, title: 'Submit for Review', desc: 'Assign assets to a reviewer, then route them to a manager approver when ready.' },
               { icon: Building2, title: 'Department Queues', desc: 'View and manage review queues filtered by your department.' },
               { icon: MessageSquare, title: 'Comments & Review', desc: 'Add review comments on any asset for collaborative refinement.' },
               { icon: Download, title: 'Compliance Exports', desc: 'Admins can export audit logs and access reports as CSV for compliance.' },
@@ -141,10 +141,10 @@ export function HelpTab() {
           <div className="space-y-6">
             {[
               { step: 1, icon: FileText, title: 'Create Your Asset', desc: 'Enter title, prompt content, department, category, tags, and optional ROI values' },
-              { step: 2, icon: Shield, title: 'Run Security Scan', desc: 'Mandatory PII and compliance check before saving' },
-              { step: 3, icon: Users, title: 'Submit for Review', desc: 'Assign to a validator for approval' },
-              { step: 4, icon: GitFork, title: 'Fork & Iterate', desc: 'Create branches from approved assets for department-specific variations' },
-              { step: 5, icon: BarChart3, title: 'Track Value', desc: 'Monitor ROI metrics and lineage in the Analytics dashboard' },
+              { step: 2, icon: Shield, title: 'Validate and Save', desc: 'Run compliance checks, then save as Draft or Created in your department catalogue' },
+              { step: 3, icon: Users, title: 'Reviewer Stage', desc: 'Assign to a reviewer who can request changes or submit to approval' },
+              { step: 4, icon: Send, title: 'Manager Approval', desc: 'The creator\'s manager with Approver access approves the prompt while it remains In Review, then releases it to Approved' },
+              { step: 5, icon: BarChart3, title: 'Track Value', desc: 'Monitor ROI, workflow state, and lineage in the Analytics dashboard' },
             ].map(({ step, icon: Icon, title, desc }) => (
               <div key={step} className="flex gap-4">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-sm">{step}</div>
@@ -172,19 +172,22 @@ export function HelpTab() {
                   <th className="py-2 px-3 text-center text-xs font-semibold">Create</th>
                   <th className="py-2 px-3 text-center text-xs font-semibold">Edit</th>
                   <th className="py-2 px-3 text-center text-xs font-semibold">Review</th>
+                  <th className="py-2 px-3 text-center text-xs font-semibold">Approve</th>
                   <th className="py-2 px-3 text-center text-xs font-semibold">Admin</th>
                 </tr>
               </thead>
               <tbody>
                 {[
-                  { role: 'Admin', create: true, edit: true, review: true, admin: true },
-                  { role: 'Collaborator', create: true, edit: true, review: false, admin: false },
-                  { role: 'Validator', create: false, edit: false, review: true, admin: false },
-                  { role: 'Viewer', create: false, edit: false, review: false, admin: false },
+                  { role: 'Super Admin', create: true, edit: true, review: true, approve: true, admin: true },
+                  { role: 'Admin', create: true, edit: true, review: true, approve: true, admin: true },
+                  { role: 'Creator', create: true, edit: true, review: false, approve: false, admin: false },
+                  { role: 'Reviewer', create: false, edit: false, review: true, approve: false, admin: false },
+                  { role: 'Approver', create: false, edit: false, review: false, approve: true, admin: false },
+                  { role: 'Viewer', create: false, edit: false, review: false, approve: false, admin: false },
                 ].map(r => (
                   <tr key={r.role} className="border-b border-border/50">
                     <td className="py-2 px-3 font-medium">{r.role}</td>
-                    {[r.create, r.edit, r.review, r.admin].map((v, i) => (
+                    {[r.create, r.edit, r.review, r.approve, r.admin].map((v, i) => (
                       <td key={i} className="py-2 px-3 text-center">
                         {v ? <CheckCircle className="h-4 w-4 text-status-green mx-auto" /> : <XCircle className="h-4 w-4 text-muted-foreground/30 mx-auto" />}
                       </td>
@@ -194,6 +197,7 @@ export function HelpTab() {
               </tbody>
             </table>
           </div>
+          <p className="mt-3 text-xs text-muted-foreground">Created assets are visible in the catalogue to authenticated users. In Review assets are only visible to the creator, assigned reviewer, assigned approver, and admins.</p>
         </CardContent>
       </Card>
 

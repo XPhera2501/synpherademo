@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ROICategory, ScanResult } from '@/lib/synphera-types';
 import { runSecurityScan } from '@/lib/security-scanner';
 import { validatePromptBestPractices, analyzePrompt, type ValidationResult, type PromptAnalysis } from '@/lib/prompt-validator';
-import { buildSuggestedROIEntries } from '@/lib/business-outcome-analyzer';
 import { createAsset, saveROIFact, addAuditLog } from '@/lib/supabase-store';
 import type { DepartmentEnum, AssetStatusEnum, PromptAssetMetadata } from '@/lib/supabase-store';
 import { ScanResultPanel } from './ScanResultPanel';
@@ -111,6 +110,22 @@ function cloneROIEntries(entries: ROIEntry[]): ROIEntry[] {
   return entries.map((entry) => ({ ...entry }));
 }
 
+function buildOutcomePercentages(promptAnalysis: PromptAnalysis): Partial<Record<ROICategory, number>> {
+  const percentages: Partial<Record<ROICategory, number>> = {};
+
+  promptAnalysis.businessOutcome.benefitRanking.forEach((result) => {
+    if (result.category === 'Unclassified') {
+      return;
+    }
+
+    result.suggestedRoiCategories.forEach((category) => {
+      percentages[category] = Number((result.confidence * 100).toFixed(1));
+    });
+  });
+
+  return percentages;
+}
+
 export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: CreationTabProps) {
   const { user, canEdit, role, profile } = useAuth();
   const [title, setTitle] = useState('');
@@ -125,7 +140,6 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
   const [isSaving, setIsSaving] = useState(false);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [analysis, setAnalysis] = useState<PromptAnalysis | null>(null);
-  const [autoOpenRoiCategory, setAutoOpenRoiCategory] = useState<ROICategory | null>(null);
 
   // Compliance
   const [selectedFrameworks, setSelectedFrameworks] = useState<string[]>([]);
@@ -133,18 +147,6 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
   const [complianceValidated, setComplianceValidated] = useState(false);
 
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-
-  const suggestedRoiEntries = useMemo(
-    () => (analysis ? buildSuggestedROIEntries(analysis.businessOutcome) : []),
-    [analysis],
-  );
-
-  const unappliedSuggestedEntries = useMemo(
-    () => suggestedRoiEntries.filter(
-      (suggestion) => !roiEntries.some((entry) => entry.category === suggestion.category),
-    ),
-    [roiEntries, suggestedRoiEntries],
-  );
 
   useEffect(() => {
     if (profile?.department) {
@@ -176,7 +178,6 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
     setCommitMessage('');
     setValidation(null);
     setAnalysis(null);
-    setAutoOpenRoiCategory(null);
     setSelectedFrameworks([]);
     setComplianceResults([]);
     setComplianceValidated(false);
@@ -186,6 +187,7 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
   
   const canSave = title.trim().length > 0 && content.trim().length > 0;
   const isBlocked = false;
+  const outcomePercentages = analysis ? buildOutcomePercentages(analysis) : {};
 
   const applyIngestedPrompt = (nextTitle: string, nextContent: string, nextBenefits: ROIEntry[]) => {
     setTitle(nextTitle);
@@ -279,24 +281,6 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
     else toast.error('Critical issues found. Remediate content.');
   };
 
-  const handleApplySuggestedROI = () => {
-    if (unappliedSuggestedEntries.length === 0) {
-      toast.info('All suggested ROI categories are already present.');
-      return;
-    }
-
-    setRoiEntries((currentEntries) => [
-      ...currentEntries,
-      ...unappliedSuggestedEntries.map((suggestion) => ({
-        category: suggestion.category,
-        value: 0,
-        description: suggestion.description,
-      })),
-    ]);
-    setAutoOpenRoiCategory(unappliedSuggestedEntries[0].category);
-    toast.success('Suggested ROI entries added for review. Add values before saving them as ROI facts.');
-  };
-
   // Build metadata including profile summary
   const buildMetadata = (): PromptAssetMetadata => {
     const benefitSummary = roiEntries.filter(e => e.value !== 0).map(e => ({
@@ -328,15 +312,22 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
     };
   };
 
-  const saveAsset = async (status: AssetStatusEnum, successMessage: string, assignedTo: string | null = null) => {
+  const saveAsset = async (status: AssetStatusEnum, successMessage: string) => {
     if (!canSave || isBlocked || !user) return false;
     if (!commitMessage.trim()) {
-      toast.error('Message to validator is required');
+      toast.error('Message to reviewer is required');
       return false;
     }
 
     setIsSaving(true);
     const metadata = buildMetadata();
+    const workflowMetadata: PromptAssetMetadata = {
+      ...metadata,
+      workflow: {
+        phase: 'reviewer_review',
+        reassignedAt: new Date().toISOString(),
+      },
+    };
 
     const asset = await createAsset({
       title: title.trim(),
@@ -344,7 +335,6 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
       version: 1.0,
       status,
       parent_id: null,
-      assigned_to: assignedTo,
       created_by: user.id,
       department,
       category: null,
@@ -380,13 +370,13 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
   };
 
   const handleSave = async () => {
-    await saveAsset('draft' as AssetStatusEnum, `Asset "${title}" saved to catalogue!`);
+    await saveAsset('created' as AssetStatusEnum, `Asset "${title}" saved to catalogue!`);
   };
 
-  const handleAssignForReview = async (colleagueId: string, requestType: 'review' | 'validate') => {
+  const handleAssignForReview = async (reviewerId: string) => {
     if (!user || !canSave || isBlocked) return;
     if (!commitMessage.trim()) {
-      toast.error('Message to validator is required');
+      toast.error('Message to reviewer is required');
       return;
     }
 
@@ -397,9 +387,10 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
       title: title.trim(),
       content: content.trim(),
       version: 1.0,
-      status: 'created' as AssetStatusEnum,
+      status: 'in_review' as AssetStatusEnum,
       parent_id: null,
-      assigned_to: colleagueId,
+      reviewer_id: reviewerId,
+      approver_id: null,
       created_by: user.id,
       department,
       category: null,
@@ -408,7 +399,7 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
       commit_message: commitMessage.trim(),
       is_locked: false,
       tags: [],
-      metadata,
+      metadata: workflowMetadata,
     });
 
     if (asset) {
@@ -419,13 +410,13 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
       }
       await addAuditLog({
         user_id: user.id,
-        action: `assign_for_${requestType}`,
+        action: 'assign_for_review',
         target_type: 'prompt_asset',
         target_id: asset.id,
-        details: { assigned_to: colleagueId, request_type: requestType },
+        details: { reviewer_id: reviewerId },
       });
 
-      toast.success(`Asset sent for ${requestType}!`);
+      toast.success('Asset sent for review!');
       resetForm();
       onAssetCreated();
     } else {
@@ -438,7 +429,6 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
     setTitle(''); setContent(''); setRoiEntries([]);
     setJustification(''); setCommitMessage(''); setScanResult(null);
     setValidation(null); setAnalysis(null);
-    setAutoOpenRoiCategory(null);
     setSelectedFrameworks([]); setComplianceResults([]); setComplianceValidated(false);
   };
 
@@ -505,40 +495,8 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
               entries={roiEntries}
               onChange={setRoiEntries}
               department={department}
-              autoOpenCategory={autoOpenRoiCategory}
-              onAutoOpenHandled={() => setAutoOpenRoiCategory(null)}
+              outcomePercentages={outcomePercentages}
             />
-            {suggestedRoiEntries.length > 0 && (
-              <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3 space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium">Classifier ROI Suggestions</p>
-                    <p className="text-xs text-muted-foreground">Review and approve suggested categories from the semantic classifier.</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleApplySuggestedROI}
-                    disabled={unappliedSuggestedEntries.length === 0}
-                  >
-                    {unappliedSuggestedEntries.length === 0 ? 'Applied' : 'Apply Suggestions'}
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {suggestedRoiEntries.map((suggestion) => {
-                    const alreadyApplied = roiEntries.some((entry) => entry.category === suggestion.category);
-                    return (
-                      <Badge key={suggestion.category} variant={alreadyApplied ? 'secondary' : 'outline'} className="text-[10px]">
-                        {suggestion.category}{alreadyApplied ? ' Added' : ' Suggested'}
-                      </Badge>
-                    );
-                  })}
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Approved suggestions populate the Benefits table with descriptions. Enter a non-zero value to save them as ROI facts.
-                </p>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
@@ -690,25 +648,6 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
                     <span className="text-xs font-medium text-muted-foreground">Task Classification</span>
                     <p className="text-sm font-semibold">{analysis.taskType}</p>
                   </div>
-                  <div className="rounded-lg border p-3 space-y-2">
-                    <span className="text-xs font-medium text-muted-foreground">Primary Business Outcome</span>
-                    <p className="text-sm font-semibold">{analysis.businessOutcome.primaryBenefit}</p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{(analysis.businessOutcome.primaryConfidence * 100).toFixed(1)}% confidence</span>
-                      {analysis.businessOutcome.ambiguityFlag && (
-                        <Badge variant="outline" className="text-[10px]">Ambiguous mix</Badge>
-                      )}
-                    </div>
-                    {analysis.businessOutcome.roiCategorySuggestions.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {analysis.businessOutcome.roiCategorySuggestions.map((category) => (
-                          <Badge key={category} variant="secondary" className="text-[10px]">
-                            Suggested ROI: {category}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                   <div className="rounded-lg border p-3 space-y-1">
                     <span className="text-xs font-medium text-muted-foreground">Determinism Score</span>
                     <p className="text-sm font-semibold">{analysis.determinismScore} / 100</p>
@@ -731,45 +670,6 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
                       </p>
                     ))}
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <span className="text-xs font-medium text-muted-foreground">Business Outcome Ranking</span>
-                  <div className="grid gap-2">
-                    {analysis.businessOutcome.benefitRanking.map((result) => (
-                      <div key={result.category} className="rounded-lg border p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-medium">{result.category}</p>
-                            <p className="text-xs text-muted-foreground">{(result.confidence * 100).toFixed(1)}% confidence</p>
-                          </div>
-                          <div className="flex flex-wrap justify-end gap-1">
-                            {result.suggestedRoiCategories.map((category) => (
-                              <Badge key={`${result.category}-${category}`} variant="outline" className="text-[10px]">
-                                {category}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <span className="text-xs font-medium text-muted-foreground">Classifier Guidance</span>
-                  <div className="rounded-lg border p-3 text-sm text-muted-foreground">
-                    {analysis.businessOutcome.guidance}
-                  </div>
-                  {analysis.businessOutcome.domainSignals.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {analysis.businessOutcome.domainSignals.map((signal) => (
-                        <Badge key={signal.domain} variant="outline" className="text-[10px]">
-                          {signal.domain}: {signal.count}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -814,19 +714,19 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
               </>
             ) : (
               <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-                Prompt analysis and business outcome classification will appear here after you run compliance validation.
+                Prompt analysis will appear here after you run compliance validation.
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Message to validator + action buttons */}
+      {/* Message to reviewer + action buttons */}
       <div className="space-y-3">
         <div className="space-y-2">
           <Label htmlFor="commit" className="flex items-center gap-2">
             <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-            Message to Validator <span className="text-destructive">*</span>
+            Message to Reviewer <span className="text-destructive">*</span>
           </Label>
           <Input
             id="commit"

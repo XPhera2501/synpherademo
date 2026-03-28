@@ -16,9 +16,11 @@ import { CommentThread } from './CommentThread';
 import { ROIBuilder } from './ROIBuilder';
 import { AssignForReviewDialog } from './AssignForReviewDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import {
   getAssets, updateAssetWithVersioning, addAuditLog, getProfiles, getROIFacts, replaceROIFacts,
-  type DbPromptAsset, type AssetStatusEnum, type DepartmentEnum, type DbProfile, type DbROIFact, type PromptAssetMetadata
+  type DbPromptAsset, type AssetStatusEnum, type DepartmentEnum, type DbProfile, type DbROIFact,
+  type PromptAssetMetadata, type PromptWorkflowActor, type PromptWorkflowPhase
 } from '@/lib/supabase-store';
 import { DEPARTMENTS } from '@/lib/synphera-types';
 import type { SecurityStatus } from '@/lib/synphera-types';
@@ -49,12 +51,61 @@ const STATUS_LABELS: Record<string, string> = {
   approved: 'Approved',
 };
 
+const REVIEW_PHASE_LABELS: Record<PromptWorkflowPhase, string> = {
+  reviewer_review: 'Reviewer Review',
+  creator_rework: 'Returned to Creator',
+  approver_review: 'Awaiting Approval',
+};
+
 function getPromptAssetMetadata(asset: DbPromptAsset): PromptAssetMetadata | null {
   if (!asset.metadata || typeof asset.metadata !== 'object' || Array.isArray(asset.metadata)) {
     return null;
   }
 
   return asset.metadata as PromptAssetMetadata;
+}
+
+function getWorkflowPhase(asset: DbPromptAsset): PromptWorkflowPhase | null {
+  const workflowPhase = getPromptAssetMetadata(asset)?.workflow?.phase;
+  if (workflowPhase === 'reviewer_review' || workflowPhase === 'creator_rework' || workflowPhase === 'approver_review') {
+    return workflowPhase;
+  }
+
+  if (asset.status === 'pending_approval') {
+    return 'approver_review';
+  }
+
+  if (asset.status !== 'in_review') {
+    return null;
+  }
+
+  if (asset.approver_id) {
+    return 'approver_review';
+  }
+
+  if (asset.reviewer_id) {
+    return 'reviewer_review';
+  }
+
+  return 'creator_rework';
+}
+
+function buildWorkflowMetadata(
+  asset: DbPromptAsset,
+  phase: PromptWorkflowPhase,
+  updates: Partial<PromptAssetMetadata['workflow']> = {},
+): PromptAssetMetadata {
+  const currentMetadata = getPromptAssetMetadata(asset) || {};
+  const currentWorkflow = currentMetadata.workflow || {};
+
+  return {
+    ...currentMetadata,
+    workflow: {
+      ...currentWorkflow,
+      ...updates,
+      phase,
+    },
+  };
 }
 
 function StatusDot({ status }: { status: string }) {
@@ -67,10 +118,11 @@ function StatusDot({ status }: { status: string }) {
 }
 
 export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTabProps) {
-  const { user, isReviewer, canEdit, isAdmin, profile } = useAuth();
+  const { user, isReviewer, isApprover, isAdmin, profile } = useAuth();
   const [assets, setAssets] = useState<DbPromptAsset[]>([]);
   const [profiles, setProfiles] = useState<DbProfile[]>([]);
   const [facts, setFacts] = useState<DbROIFact[]>([]);
+  const [rolesByUserId, setRolesByUserId] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
 
   // Dialog state
@@ -79,9 +131,9 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
   const [editTitle, setEditTitle] = useState('');
   const [editCommitMessage, setEditCommitMessage] = useState('');
   const [editRoiEntries, setEditRoiEntries] = useState<ROIEntry[]>([]);
-  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -90,10 +142,24 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
 
   const loadData = async () => {
     setLoading(true);
-    const [data, profs, f] = await Promise.all([getAssets(), getProfiles(), getROIFacts()]);
+    const [data, profs, f, { data: roleRows }] = await Promise.all([
+      getAssets(),
+      getProfiles(),
+      getROIFacts(),
+      supabase.from('user_roles').select('user_id, role'),
+    ]);
+
+    const nextRolesByUserId: Record<string, string[]> = {};
+    (roleRows || []).forEach((row) => {
+      const currentRoles = nextRolesByUserId[row.user_id] || [];
+      currentRoles.push(row.role);
+      nextRolesByUserId[row.user_id] = currentRoles;
+    });
+
     setAssets(data);
     setProfiles(profs);
     setFacts(f);
+    setRolesByUserId(nextRolesByUserId);
     setLoading(false);
   };
 
@@ -101,19 +167,41 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
 
   const profileMap = useMemo(() => new Map(profiles.map(p => [p.id, p.display_name || 'Unknown'])), [profiles]);
 
-  // My Reviews: prompts assigned to me with 'created' or 'in_review' status
+  // My Reviews: prompts assigned to me for review
   const myReviews = useMemo(() => {
     if (!user) return [];
-    return assets.filter(a => a.assigned_to === user.id && (a.status === 'created' || a.status === 'in_review'));
+    return assets.filter(a =>
+      a.reviewer_id === user.id &&
+      a.status === 'in_review' &&
+      getWorkflowPhase(a) === 'reviewer_review'
+    );
   }, [assets, user]);
 
-  // Dept Queue: unassigned created/in_review assets in my department
+  const myApprovals = useMemo(() => {
+    if (!user) return [];
+    return assets.filter(a =>
+      a.approver_id === user.id &&
+      (a.status === 'in_review' || a.status === 'pending_approval') &&
+      getWorkflowPhase(a) === 'approver_review'
+    );
+  }, [assets, user]);
+
+  const myReturnedPrompts = useMemo(() => {
+    if (!user) return [];
+    return assets.filter(a =>
+      a.created_by === user.id &&
+      a.status === 'in_review' &&
+      getWorkflowPhase(a) === 'creator_rework'
+    );
+  }, [assets, user]);
+
+  // Dept Queue: created assets in my department without a reviewer yet
   const deptQueue = useMemo(() => {
     if (!user || !profile?.department) return [];
     return assets.filter(a =>
-      (a.status === 'created' || a.status === 'in_review') &&
+      a.status === 'created' &&
       a.department === profile.department &&
-      !a.assigned_to
+      !a.reviewer_id
     );
   }, [assets, user, profile?.department]);
 
@@ -145,7 +233,47 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
   }, [searchQuery, dateFilter, sortBy]);
 
   const filteredReviews = useMemo(() => applyFilters(myReviews), [myReviews, applyFilters]);
+  const filteredApprovals = useMemo(() => applyFilters(myApprovals), [myApprovals, applyFilters]);
+  const filteredReturnedPrompts = useMemo(() => applyFilters(myReturnedPrompts), [myReturnedPrompts, applyFilters]);
   const filteredDeptQueue = useMemo(() => applyFilters(deptQueue), [deptQueue, applyFilters]);
+
+  const profileById = useMemo(() => new Map(profiles.map((entry) => [entry.id, entry])), [profiles]);
+
+  const canReviewAsset = useCallback((asset: DbPromptAsset | null) => {
+    if (!asset || !user) {
+      return false;
+    }
+
+    if (isAdmin) {
+      return true;
+    }
+
+    return isReviewer && asset.reviewer_id === user.id && getWorkflowPhase(asset) === 'reviewer_review';
+  }, [isAdmin, isReviewer, user]);
+
+  const canApproveAsset = useCallback((asset: DbPromptAsset | null) => {
+    if (!asset || !user) {
+      return false;
+    }
+
+    if (isAdmin) {
+      return true;
+    }
+
+    return isApprover && asset.approver_id === user.id && getWorkflowPhase(asset) === 'approver_review';
+  }, [isAdmin, isApprover, user]);
+
+  const canReworkAsset = useCallback((asset: DbPromptAsset | null) => {
+    if (!asset || !user) {
+      return false;
+    }
+
+    if (isAdmin) {
+      return true;
+    }
+
+    return asset.created_by === user.id && asset.status === 'in_review' && getWorkflowPhase(asset) === 'creator_rework';
+  }, [isAdmin, user]);
 
   const getAssetFacts = (assetId: string) => facts.filter(f => f.asset_id === assetId);
 
@@ -182,13 +310,53 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
     return true;
   };
 
-  // Save for Later Completion — sets status to in_review
+  const handleClaimReview = async (asset: DbPromptAsset) => {
+    if (!user) return;
+
+    setIsSaving(true);
+    const updated = await updateAssetWithVersioning(
+      asset.id,
+      {
+        status: 'in_review' as AssetStatusEnum,
+        reviewer_id: user.id,
+        approver_id: null,
+        metadata: buildWorkflowMetadata(asset, 'reviewer_review', {
+          returnedBy: undefined,
+          returnedAt: undefined,
+          submittedForApprovalAt: undefined,
+          reassignedAt: new Date().toISOString(),
+        }),
+      },
+      user.id,
+      'Claimed review ownership',
+      'claim_review',
+    );
+
+    if (updated) {
+      await addAuditLog({
+        user_id: user.id,
+        action: 'claim_review',
+        target_type: 'prompt_asset',
+        target_id: updated.id,
+        details: { reviewer_id: user.id },
+      });
+      toast.success('Review claimed');
+      onAssetUpdated();
+      loadData();
+    } else {
+      toast.error('Failed to claim review');
+    }
+
+    setIsSaving(false);
+  };
+
+  // Save for Later Completion — keeps the current review state
   const handleSaveForLater = async () => {
     if (!selectedAsset || !user) return;
     setIsSaving(true);
     const updated = await updateAssetWithVersioning(
       selectedAsset.id,
-      { content: editDialogContent, title: editTitle, status: 'in_review' as AssetStatusEnum },
+      { content: editDialogContent, title: editTitle, status: selectedAsset.status },
       user.id,
       editCommitMessage.trim() || 'Saved for later completion',
       'update',
@@ -199,7 +367,7 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
         setIsSaving(false);
         return;
       }
-      toast.success('Prompt saved — status set to In Review');
+      toast.success('Prompt changes saved');
       setSelectedAsset(null);
       onAssetUpdated();
       loadData();
@@ -209,9 +377,145 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
     setIsSaving(false);
   };
 
+  const handleReturnToCreator = async () => {
+    if (!selectedAsset || !user) return;
+    if (!editCommitMessage.trim()) {
+      toast.error('Please add a message before returning this prompt');
+      return;
+    }
+
+    const canReturn = canReviewAsset(selectedAsset) || canApproveAsset(selectedAsset);
+
+    if (!canReturn) {
+      toast.error('You do not have permission to return this prompt');
+      return;
+    }
+
+    const returnedBy: PromptWorkflowActor = canApproveAsset(selectedAsset) ? 'approver' : 'reviewer';
+    setIsSaving(true);
+    const updated = await updateAssetWithVersioning(
+      selectedAsset.id,
+      {
+        content: editDialogContent,
+        title: editTitle,
+        status: 'in_review' as AssetStatusEnum,
+        reviewer_id: null,
+        approver_id: null,
+        metadata: buildWorkflowMetadata(selectedAsset, 'creator_rework', {
+          returnedBy,
+          returnedAt: new Date().toISOString(),
+          submittedForApprovalAt: undefined,
+        }),
+      },
+      user.id,
+      editCommitMessage.trim(),
+      'return_to_creator',
+    );
+
+    if (updated) {
+      const benefitsSaved = await persistEditedBenefits(updated.id);
+      if (!benefitsSaved) {
+        setIsSaving(false);
+        return;
+      }
+
+      toast.success('Prompt returned to creator');
+      setSelectedAsset(null);
+      onAssetUpdated();
+      loadData();
+    } else {
+      toast.error('Failed to return prompt');
+    }
+
+    setIsSaving(false);
+  };
+
+  const handleSubmitForApproval = async () => {
+    if (!selectedAsset || !user) return;
+    if (!canReviewAsset(selectedAsset)) {
+      toast.error('You do not have permission to submit this prompt for approval');
+      return;
+    }
+    if (!editCommitMessage.trim()) {
+      toast.error('Please add a message before submitting for approval');
+      return;
+    }
+
+    const creatorProfile = profileById.get(selectedAsset.created_by);
+    const approverId = creatorProfile?.manager_id || null;
+
+    if (!approverId) {
+      toast.error('The creator does not have a manager assigned');
+      return;
+    }
+
+    const approverProfile = profileById.get(approverId);
+    const approverRoles = rolesByUserId[approverId] || [];
+
+    if (!approverRoles.includes('approver') && !approverRoles.includes('admin') && !approverRoles.includes('super_admin')) {
+      toast.error('The creator\'s manager does not have Approver access');
+      return;
+    }
+
+    if (!isAdmin && approverProfile?.department !== creatorProfile?.department) {
+      toast.error('The approver must be in the same department as the creator');
+      return;
+    }
+
+    setIsSaving(true);
+    const updated = await updateAssetWithVersioning(
+      selectedAsset.id,
+      {
+        content: editDialogContent,
+        title: editTitle,
+        status: 'in_review' as AssetStatusEnum,
+        reviewer_id: selectedAsset.reviewer_id || user.id,
+        approver_id: approverId,
+        metadata: buildWorkflowMetadata(selectedAsset, 'approver_review', {
+          returnedBy: undefined,
+          returnedAt: undefined,
+          reassignedAt: undefined,
+          submittedForApprovalAt: new Date().toISOString(),
+        }),
+      },
+      user.id,
+      editCommitMessage.trim(),
+      'submit_for_approval',
+    );
+
+    if (updated) {
+      const benefitsSaved = await persistEditedBenefits(updated.id);
+      if (!benefitsSaved) {
+        setIsSaving(false);
+        return;
+      }
+
+      await addAuditLog({
+        user_id: user.id,
+        action: 'submit_for_approval',
+        target_type: 'prompt_asset',
+        target_id: updated.id,
+        details: { approver_id: approverId, reviewer_id: updated.reviewer_id },
+      });
+
+      toast.success('Prompt submitted for approval');
+      setSelectedAsset(null);
+      onAssetUpdated();
+      loadData();
+    } else {
+      toast.error('Failed to submit for approval');
+    }
+
+    setIsSaving(false);
+  };
+
   // Approve — sets status to approved
   const handleApprove = async () => {
     if (!selectedAsset || !user) return;
+    if (!canApproveAsset(selectedAsset)) {
+      toast.error('You do not have permission to approve this prompt');
+      return;
+    }
     if (!editCommitMessage.trim()) {
       toast.error('Please add a commit message before approving');
       return;
@@ -223,8 +527,10 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
         content: editDialogContent,
         title: editTitle,
         status: 'approved' as AssetStatusEnum,
-        assigned_to: null,
+        reviewer_id: selectedAsset.reviewer_id,
+        approver_id: selectedAsset.approver_id,
         security_status: 'GREEN',
+        metadata: buildWorkflowMetadata(selectedAsset, 'approver_review'),
       },
       user.id,
       editCommitMessage.trim(),
@@ -246,10 +552,14 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
     setIsSaving(false);
   };
 
-  const handleSubmitForValidation = async (colleagueId: string, requestType: 'review' | 'validate') => {
+  const handleResubmitToReviewer = async (reviewerId: string) => {
     if (!selectedAsset || !user) return;
+    if (!canReworkAsset(selectedAsset)) {
+      toast.error('You do not have permission to re-submit this prompt');
+      return;
+    }
     if (!editCommitMessage.trim()) {
-      toast.error('Please add a message before submitting for validation');
+      toast.error('Please add a message before re-submitting this prompt');
       return;
     }
 
@@ -259,12 +569,19 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
       {
         content: editDialogContent,
         title: editTitle,
-        status: 'created' as AssetStatusEnum,
-        assigned_to: colleagueId,
+        status: 'in_review' as AssetStatusEnum,
+        reviewer_id: reviewerId,
+        approver_id: null,
+        metadata: buildWorkflowMetadata(selectedAsset, 'reviewer_review', {
+          returnedBy: undefined,
+          returnedAt: undefined,
+          submittedForApprovalAt: undefined,
+          reassignedAt: new Date().toISOString(),
+        }),
       },
       user.id,
       editCommitMessage.trim(),
-      `submit_for_${requestType}`,
+      'resubmit_for_review',
     );
 
     if (updated) {
@@ -276,19 +593,19 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
 
       await addAuditLog({
         user_id: user.id,
-        action: `submit_for_${requestType}`,
+        action: 'resubmit_for_review',
         target_type: 'prompt_asset',
         target_id: updated.id,
-        details: { assigned_to: colleagueId, request_type: requestType },
+        details: { reviewer_id: reviewerId },
       });
 
-      toast.success(`Prompt submitted for ${requestType}`);
+      toast.success('Prompt sent back to review');
       setAssignDialogOpen(false);
       setSelectedAsset(null);
       onAssetUpdated();
       loadData();
     } else {
-      toast.error('Failed to submit prompt for validation');
+      toast.error('Failed to re-submit prompt for review');
     }
 
     setIsSaving(false);
@@ -302,6 +619,7 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
     const isExpanded = expandedId === asset.id;
     const meta = getPromptAssetMetadata(asset);
     const assetFacts = getAssetFacts(asset.id);
+    const workflowPhase = getWorkflowPhase(asset);
 
     return (
       <Collapsible key={asset.id} open={isExpanded} onOpenChange={() => setExpandedId(isExpanded ? null : asset.id)}>
@@ -324,9 +642,24 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
           <div className="px-4 py-3 bg-muted/10 border-b border-border/50 space-y-2">
             <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
               <Badge variant="outline" className="capitalize text-[10px]">{STATUS_LABELS[asset.status] || asset.status}</Badge>
+              {asset.status === 'in_review' && workflowPhase && (
+                <Badge variant="secondary" className="text-[10px]">{REVIEW_PHASE_LABELS[workflowPhase]}</Badge>
+              )}
               <span>v{asset.version}</span>
               <span>•</span>
               <span>{asset.department}</span>
+              {asset.reviewer_id && (
+                <>
+                  <span>•</span>
+                  <span>Reviewer: {profileMap.get(asset.reviewer_id) || 'Unknown'}</span>
+                </>
+              )}
+              {asset.approver_id && (
+                <>
+                  <span>•</span>
+                  <span>Approver: {profileMap.get(asset.approver_id) || 'Unknown'}</span>
+                </>
+              )}
               <span>•</span>
               <span>By {profileMap.get(asset.created_by) || 'Unknown'}</span>
               <span>•</span>
@@ -345,10 +678,18 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
               )}
             </div>
             <p className="text-xs text-muted-foreground line-clamp-2">{asset.content}</p>
-            <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={() => openDetail(asset)}>
-              <Edit3 className="h-3 w-3" />
-              Open & Review
-            </Button>
+            <div className="flex items-center gap-2">
+              {asset.status === 'created' && !asset.reviewer_id && isReviewer && (
+                <Button size="sm" className="gap-1 text-xs h-7" onClick={(event) => { event.stopPropagation(); void handleClaimReview(asset); }}>
+                  <ClipboardList className="h-3 w-3" />
+                  Start Review
+                </Button>
+              )}
+              <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={() => openDetail(asset)}>
+                <Edit3 className="h-3 w-3" />
+                Open
+              </Button>
+            </div>
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -391,15 +732,33 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
     </div>
   );
 
+  const showReturnedTab = !!user;
+  const tabCount = 2 + (isApprover ? 1 : 0) + (showReturnedTab ? 1 : 0);
+  const tabsGridClass = tabCount === 4 ? 'grid-cols-4' : tabCount === 3 ? 'grid-cols-3' : 'grid-cols-2';
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="my-review" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 bg-card border border-border h-10">
+        <TabsList className={`grid w-full ${tabsGridClass} bg-card border border-border h-10`}>
           <TabsTrigger value="my-review" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Inbox className="h-3.5 w-3.5" />
             My Reviews
             {myReviews.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px] bg-primary/20 text-primary">{myReviews.length}</Badge>}
           </TabsTrigger>
+          {isApprover && (
+            <TabsTrigger value="my-approval" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Check className="h-3.5 w-3.5" />
+              My Approvals
+              {myApprovals.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px] bg-primary/20 text-primary">{myApprovals.length}</Badge>}
+            </TabsTrigger>
+          )}
+          {showReturnedTab && (
+            <TabsTrigger value="returned-to-me" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Edit3 className="h-3.5 w-3.5" />
+              Returned to Me
+              {myReturnedPrompts.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px] bg-primary/20 text-primary">{myReturnedPrompts.length}</Badge>}
+            </TabsTrigger>
+          )}
           <TabsTrigger value="dept-queue" className="gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Building2 className="h-3.5 w-3.5" />
             Department Queue
@@ -407,7 +766,7 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
           </TabsTrigger>
         </TabsList>
 
-        {/* My Reviews — Prompts assigned to me with created/in_review status */}
+        {/* My Reviews — Prompts assigned to me with in_review status */}
         <TabsContent value="my-review" className="space-y-4">
           {filterBar}
           <Card className="shadow-none overflow-hidden">
@@ -415,13 +774,47 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
               <CardContent className="py-12 text-center">
                 <Inbox className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">No prompts pending your review.</p>
-                <p className="text-xs text-muted-foreground mt-1">Prompts assigned to you with 'Created' or 'In Review' status will appear here.</p>
+                <p className="text-xs text-muted-foreground mt-1">Prompts assigned to you with 'In Review' status will appear here.</p>
               </CardContent>
             ) : (
               filteredReviews.map(a => renderRow(a))
             )}
           </Card>
         </TabsContent>
+
+        {isApprover && (
+          <TabsContent value="my-approval" className="space-y-4">
+            {filterBar}
+            <Card className="shadow-none overflow-hidden">
+              {filteredApprovals.length === 0 ? (
+                <CardContent className="py-12 text-center">
+                  <Check className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">No prompts pending your approval.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Items awaiting approval remain in the In Review lifecycle stage.</p>
+                </CardContent>
+              ) : (
+                filteredApprovals.map(a => renderRow(a))
+              )}
+            </Card>
+          </TabsContent>
+        )}
+
+        {showReturnedTab && (
+          <TabsContent value="returned-to-me" className="space-y-4">
+            {filterBar}
+            <Card className="shadow-none overflow-hidden">
+              {filteredReturnedPrompts.length === 0 ? (
+                <CardContent className="py-12 text-center">
+                  <Edit3 className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">No prompts have been returned to you.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Returned prompts stay in review until you revise them and send them back to a reviewer.</p>
+                </CardContent>
+              ) : (
+                filteredReturnedPrompts.map(a => renderRow(a))
+              )}
+            </Card>
+          </TabsContent>
+        )}
 
         {/* Department Queue */}
         <TabsContent value="dept-queue" className="space-y-4">
@@ -447,17 +840,17 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
 
       {/* Review / Edit Dialog */}
       <Dialog open={!!selectedAsset} onOpenChange={(open) => { if (!open) setSelectedAsset(null); }}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[85vh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden gap-0 p-0">
           {selectedAsset && (
             <>
-              <DialogHeader>
+              <DialogHeader className="px-6 pb-4 pt-6 pr-12 border-b border-border">
                 <DialogTitle className="flex items-center gap-2 text-base">
                   <Edit3 className="h-4 w-4" />
                   Review Prompt
                 </DialogTitle>
               </DialogHeader>
 
-              <div className="space-y-4">
+              <div className="space-y-4 overflow-y-auto px-6 py-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Title</Label>
                   <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} className="bg-card text-sm" />
@@ -466,9 +859,24 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
                 <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                   <StatusDot status={selectedAsset.status} />
                   <Badge variant="outline" className="capitalize text-[10px]">{STATUS_LABELS[selectedAsset.status]}</Badge>
+                  {selectedAsset.status === 'in_review' && getWorkflowPhase(selectedAsset) && (
+                    <Badge variant="secondary" className="text-[10px]">{REVIEW_PHASE_LABELS[getWorkflowPhase(selectedAsset)!]}</Badge>
+                  )}
                   <SecurityBadge status={selectedAsset.security_status as SecurityStatus} size="sm" showLabel={false} />
                   <span>v{selectedAsset.version}</span>
                   <span>•</span>
+                  {selectedAsset.reviewer_id && (
+                    <>
+                      <span>Reviewer {profileMap.get(selectedAsset.reviewer_id) || 'Unknown'}</span>
+                      <span>•</span>
+                    </>
+                  )}
+                  {selectedAsset.approver_id && (
+                    <>
+                      <span>Approver {profileMap.get(selectedAsset.approver_id) || 'Unknown'}</span>
+                      <span>•</span>
+                    </>
+                  )}
                   <span>By {profileMap.get(selectedAsset.created_by) || 'Unknown'}</span>
                   <span>•</span>
                   <span>{format(new Date(selectedAsset.created_at), 'PPP')}</span>
@@ -607,45 +1015,84 @@ export function CollaborationTab({ refreshKey, onAssetUpdated }: CollaborationTa
                 </div>
               </div>
 
-              <DialogFooter className="flex-col sm:flex-row gap-2">
+              <DialogFooter className="flex-col sm:flex-row gap-2 border-t border-border bg-background px-6 py-4">
                 <Button variant="outline" onClick={() => setSelectedAsset(null)}>Cancel</Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setAssignDialogOpen(true)}
-                  disabled={isSaving || !editCommitMessage.trim()}
-                  className="gap-2"
-                >
-                  <Users className="h-4 w-4" />
-                  Submit for Validation
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={handleSaveForLater}
-                  disabled={isSaving}
-                  className="gap-2"
-                >
-                  <Save className="h-4 w-4" />
-                  {isSaving ? 'Saving...' : 'Save for Later Completion'}
-                </Button>
-                <Button
-                  onClick={handleApprove}
-                  disabled={isSaving || !editCommitMessage.trim()}
-                  className="gap-2"
-                >
-                  <Check className="h-4 w-4" />
-                  {isSaving ? 'Approving...' : 'Approve'}
-                </Button>
+                {(canReviewAsset(selectedAsset) || canApproveAsset(selectedAsset)) && (
+                  <Button
+                    variant="outline"
+                    onClick={handleReturnToCreator}
+                    disabled={isSaving || !editCommitMessage.trim()}
+                    className="gap-2"
+                  >
+                    <Users className="h-4 w-4" />
+                    Return to Creator
+                  </Button>
+                )}
+                {selectedAsset.status === 'in_review' && canReviewAsset(selectedAsset) && (
+                  <>
+                    <Button
+                      variant="secondary"
+                      onClick={handleSaveForLater}
+                      disabled={isSaving}
+                      className="gap-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      {isSaving ? 'Saving...' : 'Save Review Progress'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleSubmitForApproval}
+                      disabled={isSaving || !editCommitMessage.trim()}
+                      className="gap-2"
+                    >
+                      <Check className="h-4 w-4" />
+                      Submit for Approval
+                    </Button>
+                  </>
+                )}
+                {selectedAsset.status === 'in_review' && canReworkAsset(selectedAsset) && (
+                  <>
+                    <Button
+                      variant="secondary"
+                      onClick={handleSaveForLater}
+                      disabled={isSaving}
+                      className="gap-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      {isSaving ? 'Saving...' : 'Save Rework'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setAssignDialogOpen(true)}
+                      disabled={isSaving || !editCommitMessage.trim()}
+                      className="gap-2"
+                    >
+                      <Send className="h-4 w-4" />
+                      Assign Back to Reviewer
+                    </Button>
+                  </>
+                )}
+                {canApproveAsset(selectedAsset) && (
+                  <Button
+                    onClick={handleApprove}
+                    disabled={isSaving || !editCommitMessage.trim()}
+                    className="gap-2"
+                  >
+                    <Check className="h-4 w-4" />
+                    {isSaving ? 'Approving...' : 'Approve'}
+                  </Button>
+                )}
               </DialogFooter>
-
-              <AssignForReviewDialog
-                open={assignDialogOpen}
-                onOpenChange={setAssignDialogOpen}
-                onSend={handleSubmitForValidation}
-              />
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      <AssignForReviewDialog
+        open={assignDialogOpen}
+        onOpenChange={setAssignDialogOpen}
+        onSend={(reviewerId) => { void handleResubmitToReviewer(reviewerId); }}
+      />
     </div>
   );
 }

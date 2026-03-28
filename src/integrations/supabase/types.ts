@@ -141,6 +141,7 @@ export type Database = {
           department: Database["public"]["Enums"]["department"] | null
           display_name: string | null
           id: string
+          manager_id: string | null
           suspended: boolean
           updated_at: string
         }
@@ -150,6 +151,7 @@ export type Database = {
           department?: Database["public"]["Enums"]["department"] | null
           display_name?: string | null
           id: string
+          manager_id?: string | null
           suspended?: boolean
           updated_at?: string
         }
@@ -159,14 +161,24 @@ export type Database = {
           department?: Database["public"]["Enums"]["department"] | null
           display_name?: string | null
           id?: string
+          manager_id?: string | null
           suspended?: boolean
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       prompt_assets: {
         Row: {
           assigned_to: string | null
+          approver_id: string | null
           category: string | null
           commit_message: string | null
           content: string
@@ -179,6 +191,7 @@ export type Database = {
           justification: string | null
           metadata: Json | null
           parent_id: string | null
+          reviewer_id: string | null
           security_status: string
           status: Database["public"]["Enums"]["asset_status"]
           tags: string[] | null
@@ -188,6 +201,7 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          approver_id?: string | null
           category?: string | null
           commit_message?: string | null
           content?: string
@@ -200,6 +214,7 @@ export type Database = {
           justification?: string | null
           metadata?: Json | null
           parent_id?: string | null
+          reviewer_id?: string | null
           security_status?: string
           status?: Database["public"]["Enums"]["asset_status"]
           tags?: string[] | null
@@ -209,6 +224,7 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          approver_id?: string | null
           category?: string | null
           commit_message?: string | null
           content?: string
@@ -221,6 +237,7 @@ export type Database = {
           justification?: string | null
           metadata?: Json | null
           parent_id?: string | null
+          reviewer_id?: string | null
           security_status?: string
           status?: Database["public"]["Enums"]["asset_status"]
           tags?: string[] | null
@@ -246,6 +263,13 @@ export type Database = {
           prompt_id: string
           user_id: string
         }
+          {
+            foreignKeyName: "prompt_assets_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         Insert: {
           content: string
           created_at?: string
@@ -253,6 +277,13 @@ export type Database = {
           prompt_id: string
           user_id: string
         }
+          {
+            foreignKeyName: "prompt_assets_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         Update: {
           content?: string
           created_at?: string
@@ -458,8 +489,8 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "super_admin" | "admin" | "creator" | "reviewer" | "viewer"
-      asset_status: "draft" | "in_review" | "approved" | "released" | "created"
+      app_role: "super_admin" | "admin" | "approver" | "creator" | "reviewer" | "viewer"
+      asset_status: "draft" | "in_review" | "pending_approval" | "approved" | "released" | "created"
       department:
         | "Operations"
         | "Legal"
@@ -596,8 +627,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["super_admin", "admin", "creator", "reviewer", "viewer"],
-      asset_status: ["draft", "in_review", "approved", "released", "created"],
+      app_role: ["super_admin", "admin", "approver", "creator", "reviewer", "viewer"],
+      asset_status: ["draft", "in_review", "pending_approval", "approved", "released", "created"],
       department: [
         "Operations",
         "Legal",

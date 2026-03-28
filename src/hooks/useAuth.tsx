@@ -2,13 +2,14 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
 
-export type AppRole = 'super_admin' | 'admin' | 'creator' | 'reviewer' | 'viewer';
+export type AppRole = 'super_admin' | 'admin' | 'approver' | 'creator' | 'reviewer' | 'viewer';
 
 interface Profile {
   id: string;
   display_name: string | null;
   avatar_url: string | null;
   department: string | null;
+  manager_id?: string | null;
 }
 
 interface AuthContextValue {
@@ -16,6 +17,7 @@ interface AuthContextValue {
   session: Session | null;
   profile: Profile | null;
   role: AppRole;
+  roles: AppRole[];
   loading: boolean;
   signUp: (email: string, password: string, displayName?: string, preferredRole?: string) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
@@ -23,6 +25,8 @@ interface AuthContextValue {
   isAdmin: boolean;
   isCreator: boolean;
   isReviewer: boolean;
+  isApprover: boolean;
+  canApprove: boolean;
   canEdit: boolean;
   refreshProfile: () => Promise<void>;
 }
@@ -34,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<AppRole>('viewer');
+  const [roles, setRoles] = useState<AppRole[]>(['viewer']);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
@@ -51,10 +56,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('user_id', userId);
     
     if (roleData && roleData.length > 0) {
-      // Pick highest privilege role
-      const roleOrder: AppRole[] = ['super_admin', 'admin', 'creator', 'reviewer', 'viewer'];
-      const bestRole = roleOrder.find(r => roleData.some(d => d.role === r)) || 'viewer';
+      const assignedRoles = roleData.map((entry) => entry.role as AppRole);
+      setRoles(assignedRoles);
+
+      // Pick highest privilege role for display
+      const roleOrder: AppRole[] = ['super_admin', 'admin', 'approver', 'creator', 'reviewer', 'viewer'];
+      const bestRole = roleOrder.find(r => assignedRoles.includes(r)) || 'viewer';
       setRole(bestRole);
+    } else {
+      setRoles(['viewer']);
+      setRole('viewer');
     }
   };
 
@@ -73,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setProfile(null);
         setRole('viewer');
+        setRoles(['viewer']);
       }
       setLoading(false);
     });
@@ -115,18 +127,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setProfile(null);
     setRole('viewer');
+    setRoles(['viewer']);
   };
 
-  const isAdmin = role === 'admin' || role === 'super_admin';
-  const isCreator = role === 'admin' || role === 'creator';
-  const isReviewer = role === 'admin' || role === 'creator' || role === 'reviewer';
+  const hasRole = (candidate: AppRole) => roles.includes(candidate);
+  const isAdmin = hasRole('admin') || hasRole('super_admin');
+  const isCreator = isAdmin || hasRole('creator');
+  const isReviewer = isAdmin || hasRole('creator') || hasRole('reviewer');
+  const isApprover = isAdmin || hasRole('approver');
+  const canApprove = isApprover;
   const canEdit = isCreator;
 
   return (
     <AuthContext.Provider value={{
-      user, session, profile, role, loading,
+      user, session, profile, role, roles, loading,
       signUp, signIn, signOut,
-      isAdmin, isCreator, isReviewer, canEdit,
+      isAdmin, isCreator, isReviewer, isApprover, canApprove, canEdit,
       refreshProfile,
     }}>
       {children}

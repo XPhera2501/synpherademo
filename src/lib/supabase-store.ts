@@ -1,6 +1,7 @@
 // Synphera - Supabase Data Store (replaces localStorage)
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert, TablesUpdate, Database, Json } from '@/integrations/supabase/types';
+import { ROI_CATEGORIES as BENEFIT_CATEGORIES, normalizeROICategory } from '@/lib/synphera-types';
 
 export type DepartmentEnum = Database['public']['Enums']['department'];
 export type AssetStatusEnum = Database['public']['Enums']['asset_status'];
@@ -14,6 +15,22 @@ export type DbComment = Tables<'prompt_comments'>;
 export type DbProfile = Tables<'profiles'>;
 export type DbAuditLog = Tables<'audit_logs'>;
 
+export type PromptWorkflowPhase = 'reviewer_review' | 'creator_rework' | 'approver_review';
+export type PromptWorkflowActor = 'reviewer' | 'approver';
+
+export interface PromptWorkflowMetadata extends Record<string, Json | undefined> {
+  phase?: PromptWorkflowPhase;
+  returnedBy?: PromptWorkflowActor;
+  returnedAt?: string;
+  submittedForApprovalAt?: string;
+  reassignedAt?: string;
+}
+
+export interface PromptRoutingMetadata extends Record<string, Json | undefined> {
+  allocation?: Record<string, number>;
+  rationale?: Record<string, string>;
+}
+
 export interface HeaderMetrics {
   totalAssets: number;
   assetsCreatedLastMonth: number;
@@ -22,14 +39,21 @@ export interface HeaderMetrics {
   registeredUsers: number;
 }
 
-export interface PromptAssetMetadata {
+export interface PromptAssetMetadata extends Record<string, Json | undefined> {
   taskType?: string;
   determinismScore?: number;
   scores?: Record<string, number>;
   flags?: Record<string, boolean>;
-  routing?: Json;
+  routing?: PromptRoutingMetadata;
   semanticClassification?: Json;
   profileSummary?: Json;
+  workflow?: PromptWorkflowMetadata;
+}
+
+export interface ReplaceROIFactInput {
+  category: string;
+  value: number;
+  description?: string | null;
 }
 
 // ==================== Prompt Assets ====================
@@ -199,14 +223,20 @@ export async function addLineageEntry(entry: TablesInsert<'lineage_entries'>): P
 
 export async function getROIFacts(): Promise<DbROIFact[]> {
   const { data } = await supabase.from('roi_facts').select('*');
-  return data || [];
+  return (data || []).map((fact) => ({
+    ...fact,
+    category: normalizeROICategory(fact.category) || fact.category,
+  }));
 }
 
 export async function saveROIFact(fact: TablesInsert<'roi_facts'>): Promise<void> {
-  await supabase.from('roi_facts').insert(fact);
+  await supabase.from('roi_facts').insert({
+    ...fact,
+    category: normalizeROICategory(fact.category) || fact.category,
+  });
 }
 
-export async function replaceROIFacts(assetId: string, facts: Array<Pick<TablesInsert<'roi_facts'>, 'category' | 'value' | 'description'>>): Promise<boolean> {
+export async function replaceROIFacts(assetId: string, facts: ReplaceROIFactInput[]): Promise<boolean> {
   const { error: deleteError } = await supabase.from('roi_facts').delete().eq('asset_id', assetId);
   if (deleteError) {
     console.error('replaceROIFacts delete error:', deleteError);
@@ -219,7 +249,7 @@ export async function replaceROIFacts(assetId: string, facts: Array<Pick<TablesI
 
   const payload: TablesInsert<'roi_facts'>[] = facts.map((fact) => ({
     asset_id: assetId,
-    category: fact.category,
+    category: normalizeROICategory(fact.category) || fact.category,
     value: fact.value,
     description: fact.description ?? null,
   }));
@@ -306,7 +336,7 @@ export async function toggleLock(assetId: string): Promise<boolean> {
 // ==================== Analytics Helpers ====================
 
 const DEPARTMENTS: DepartmentEnum[] = ['Operations', 'Legal', 'R&D', 'Marketing', 'Finance', 'HR', 'IT', 'Executive'];
-const ROI_CATEGORIES = ['Time', 'Earlier Reaction', 'Waste Reduction', 'Improved Price Negotiation'];
+const ROI_CATEGORIES = BENEFIT_CATEGORIES;
 
 export async function getDepartmentROIMatrix() {
   const assets = await getAssets();

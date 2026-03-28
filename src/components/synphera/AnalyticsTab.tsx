@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getAssets, getROIFacts, getAssetCountByDepartment, getAuditLogs, type DbPromptAsset, type DbROIFact, type DbAuditLog } from '@/lib/supabase-store';
+import { getAssets, getROIFacts, getAssetCountByDepartment, getAuditLogs, getHeaderMetrics, type DbPromptAsset, type DbROIFact, type DbAuditLog, type HeaderMetrics } from '@/lib/supabase-store';
 import { extractSavedBusinessOutcome, type BusinessOutcomeCategory } from '@/lib/business-outcome-analyzer';
 import { DEPARTMENTS, ROI_CATEGORIES, Department, ROICategory } from '@/lib/synphera-types';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
-import { BarChart3, DollarSign, Building2, Shield, Activity } from 'lucide-react';
+import { BarChart3, Boxes, CalendarDays, DollarSign, Building2, Shield, Activity, PlayCircle, Users } from 'lucide-react';
 
 interface AnalyticsTabProps {
   refreshKey: number;
@@ -21,11 +21,11 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const ROI_CATEGORY_COLORS: Record<ROICategory, string> = {
-  'Time Savings': '#00DFD4',
-  'Risk Mitigation': '#6366F1',
-  'Efficiency': '#10B981',
   'Cost Savings': '#F59E0B',
-  'New Value': '#EC4899',
+  'Compliance Improvement': '#6366F1',
+  'Operational Velocity Improvement': '#00DFD4',
+  'Risk Level Reduction': '#EF4444',
+  'Revenue Increase': '#EC4899',
 };
 
 const OUTCOME_COLORS: Record<BusinessOutcomeCategory, string> = {
@@ -34,6 +34,14 @@ const OUTCOME_COLORS: Record<BusinessOutcomeCategory, string> = {
   'Operational Velocity Improvement': '#00DFD4',
   'Risk Level Reduction': '#EF4444',
   'Revenue Increase': '#EC4899',
+};
+
+const EMPTY_METRICS: HeaderMetrics = {
+  totalAssets: 0,
+  assetsCreatedLastMonth: 0,
+  assetsInUse: 0,
+  activeUsers: 0,
+  registeredUsers: 0,
 };
 
 function getMonthKey(dateValue: string) {
@@ -54,15 +62,17 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
   const [facts, setFacts] = useState<DbROIFact[]>([]);
   const [deptCounts, setDeptCounts] = useState<Record<string, number>>({});
   const [auditLogs, setAuditLogs] = useState<DbAuditLog[]>([]);
+  const [metrics, setMetrics] = useState<HeaderMetrics>(EMPTY_METRICS);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [a, f, logs] = await Promise.all([
-        getAssets(), getROIFacts(), getAuditLogs(1000)
+      const [a, f, logs, headerMetrics] = await Promise.all([
+        getAssets(), getROIFacts(), getAuditLogs(1000), getHeaderMetrics()
       ]);
       setAssets(a); setFacts(f); setAuditLogs(logs);
+      setMetrics(headerMetrics);
       setDeptCounts(await getAssetCountByDepartment(a));
 
       setLoading(false);
@@ -71,7 +81,17 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
 
   const statusData = useMemo(() => {
     const counts: Record<string, number> = { draft: 0, created: 0, in_review: 0, approved: 0 };
-    assets.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
+    assets.forEach((asset) => {
+      if (asset.status === 'pending_approval') {
+        counts.in_review += 1;
+        return;
+      }
+
+      if (counts[asset.status] !== undefined) {
+        counts[asset.status] += 1;
+      }
+    });
+
     return [
       { name: 'Draft', value: counts.draft, fill: STATUS_COLORS.draft },
       { name: 'Created', value: counts.created, fill: STATUS_COLORS.created },
@@ -272,12 +292,54 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
     };
   }, [assets]);
 
+  const summaryStats = [
+    {
+      label: 'Total Assets',
+      value: metrics.totalAssets.toLocaleString(),
+      detail: 'All prompt assets',
+      icon: Boxes,
+    },
+    {
+      label: 'Created Last Month',
+      value: metrics.assetsCreatedLastMonth.toLocaleString(),
+      detail: 'Previous calendar month',
+      icon: CalendarDays,
+    },
+    {
+      label: 'Assets In Use',
+      value: metrics.assetsInUse.toLocaleString(),
+      detail: 'Execute clicks on validated prompts',
+      icon: PlayCircle,
+    },
+    {
+      label: 'Active Users',
+      value: `${metrics.activeUsers.toLocaleString()} / ${metrics.registeredUsers.toLocaleString()}`,
+      detail: 'Submitted vs registered users',
+      icon: Users,
+    },
+  ];
+
   if (loading) {
     return <div className="flex justify-center py-12"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
   return (
     <div className="space-y-6">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {summaryStats.map(({ label, value, detail, icon: Icon }) => (
+          <Card key={label}>
+            <CardContent className="px-6 py-5">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Icon className="h-3.5 w-3.5 text-primary" />
+                <span>{label}</span>
+              </div>
+              <p className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{value}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       <div className="grid gap-6 grid-cols-1 grid-cols-1 grid-cols-1 lg:grid-cols-2">
         {/* Catalogue Velocity */}
         <Card>

@@ -3,39 +3,58 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Search, Send, User } from 'lucide-react';
+import { Search, Send } from 'lucide-react';
 import { getProfiles, type DbProfile } from '@/lib/supabase-store';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AssignForReviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSend: (colleagueId: string, requestType: 'review' | 'validate') => void;
+  onSend: (reviewerId: string) => void;
 }
 
 export function AssignForReviewDialog({ open, onOpenChange, onSend }: AssignForReviewDialogProps) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [profiles, setProfiles] = useState<DbProfile[]>([]);
+  const [rolesByUserId, setRolesByUserId] = useState<Record<string, string[]>>({});
   const [search, setSearch] = useState('');
   const [selectedColleague, setSelectedColleague] = useState<string | null>(null);
-  const [requestType, setRequestType] = useState<'review' | 'validate'>('review');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
-      getProfiles().then(p => setProfiles(p));
+      Promise.all([
+        getProfiles(),
+        supabase.from('user_roles').select('user_id, role'),
+      ]).then(([nextProfiles, { data: roleRows }]) => {
+        setProfiles(nextProfiles);
+
+        const nextRolesByUserId: Record<string, string[]> = {};
+        (roleRows || []).forEach((row) => {
+          const currentRoles = nextRolesByUserId[row.user_id] || [];
+          currentRoles.push(row.role);
+          nextRolesByUserId[row.user_id] = currentRoles;
+        });
+        setRolesByUserId(nextRolesByUserId);
+      });
       setSearch('');
       setSelectedColleague(null);
-      setRequestType('review');
     }
   }, [open]);
 
   const filteredProfiles = useMemo(() => {
     return profiles
       .filter(p => {
+        if (p.id === user?.id) return false;
+        if (profile?.department && p.department !== profile.department) return false;
+
+        const candidateRoles = rolesByUserId[p.id] || [];
+        const canReview = candidateRoles.includes('reviewer') || candidateRoles.includes('admin') || candidateRoles.includes('super_admin');
+        if (!canReview) return false;
+
         if (!search) return true;
         const q = search.toLowerCase();
         return (
@@ -43,12 +62,12 @@ export function AssignForReviewDialog({ open, onOpenChange, onSend }: AssignForR
           p.department?.toLowerCase().includes(q)
         );
       });
-  }, [profiles, search]);
+  }, [profiles, search, user?.id, profile?.department, rolesByUserId]);
 
   const handleSend = () => {
     if (!selectedColleague) return;
     setLoading(true);
-    onSend(selectedColleague, requestType);
+    onSend(selectedColleague);
     setLoading(false);
     onOpenChange(false);
   };
@@ -57,7 +76,7 @@ export function AssignForReviewDialog({ open, onOpenChange, onSend }: AssignForR
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Assign for Review</DialogTitle>
+          <DialogTitle>Assign Reviewer</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -99,6 +118,9 @@ export function AssignForReviewDialog({ open, onOpenChange, onSend }: AssignForR
                     {p.department && (
                       <p className="text-xs text-muted-foreground">{p.department}</p>
                     )}
+                    <p className="text-[10px] text-muted-foreground">
+                      {(rolesByUserId[p.id] || []).join(', ') || 'No role'}
+                    </p>
                   </div>
                   {selectedColleague === p.id && (
                     <Badge variant="default" className="text-[10px] h-5">Selected</Badge>
@@ -108,21 +130,8 @@ export function AssignForReviewDialog({ open, onOpenChange, onSend }: AssignForR
             )}
           </div>
 
-          {/* Request type */}
-          <div className="space-y-2">
-            <Label className="text-sm">Request Type</Label>
-            <RadioGroup value={requestType} onValueChange={(v) => setRequestType(v as 'review' | 'validate')}>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="review" id="review" />
-                  <Label htmlFor="review" className="text-sm cursor-pointer">Review</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="validate" id="validate" />
-                  <Label htmlFor="validate" className="text-sm cursor-pointer">Validate</Label>
-                </div>
-              </div>
-            </RadioGroup>
+          <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+            Reviewers are limited to users in your department with Reviewer or Admin access.
           </div>
         </div>
 

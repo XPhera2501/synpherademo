@@ -277,10 +277,10 @@ const STOP_WORDS = new Set([
 
 const ROI_CATEGORY_MAP: Record<BusinessOutcomeCategory, ROICategory[]> = {
   'Cost Savings': ['Cost Savings'],
-  'Compliance Improvement': ['Risk Mitigation'],
-  'Operational Velocity Improvement': ['Time Savings', 'Efficiency'],
-  'Risk Level Reduction': ['Risk Mitigation'],
-  'Revenue Increase': ['New Value'],
+  'Compliance Improvement': ['Compliance Improvement'],
+  'Operational Velocity Improvement': ['Operational Velocity Improvement'],
+  'Risk Level Reduction': ['Risk Level Reduction'],
+  'Revenue Increase': ['Revenue Increase'],
 };
 
 const CATEGORY_GUIDANCE: Record<BusinessOutcomeCategory, string> = {

@@ -22,21 +22,23 @@ import {
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
-const ROLES: AppRoleEnum[] = ['super_admin', 'admin', 'creator', 'reviewer', 'viewer'];
+const ROLES: AppRoleEnum[] = ['super_admin', 'admin', 'approver', 'creator', 'reviewer', 'viewer'];
 const ROLE_LABELS: Record<AppRoleEnum, string> = {
   super_admin: '🔴 Super Admin',
   admin: 'Admin',
-  creator: 'Collaborator',
-  reviewer: 'Validator',
+  approver: 'Approver',
+  creator: 'Creator',
+  reviewer: 'Reviewer',
   viewer: 'Viewer',
 };
 const DEPTS: DepartmentEnum[] = ['Operations', 'Legal', 'R&D', 'Marketing', 'Finance', 'HR', 'IT', 'Executive'];
-const ROI_CATEGORIES = ['Time', 'Earlier Reaction', 'Waste Reduction', 'Improved Price Negotiation'];
+const ROI_CATEGORIES = ['Cost Savings', 'Compliance Improvement', 'Operational Velocity Improvement', 'Risk Level Reduction', 'Revenue Increase'];
 
 interface UserWithRole {
   id: string;
   display_name: string | null;
   department: DepartmentEnum | null;
+  manager_id: string | null;
   role: AppRoleEnum;
   suspended: boolean;
 }
@@ -101,6 +103,7 @@ export function AdminTab() {
         id: p.id,
         display_name: p.display_name,
         department: p.department,
+        manager_id: p.manager_id ?? null,
         role: (userRole?.role as AppRoleEnum) || 'viewer',
         suspended: p.suspended || false,
       };
@@ -133,6 +136,26 @@ export function AdminTab() {
     await supabase.from('profiles').update({ department: dept }).eq('id', userId);
     if (user) await addAuditLog({ user_id: user.id, action: 'dept_change', target_type: 'user', target_id: userId, details: { new_dept: dept } });
     toast.success('Department updated');
+    loadData();
+  };
+
+  const handleManagerChange = async (userId: string, managerId: string | null) => {
+    if (userId === managerId) {
+      toast.error('A user cannot be their own manager');
+      return;
+    }
+
+    await supabase.from('profiles').update({ manager_id: managerId }).eq('id', userId);
+    if (user) {
+      await addAuditLog({
+        user_id: user.id,
+        action: 'manager_change',
+        target_type: 'user',
+        target_id: userId,
+        details: { manager_id: managerId },
+      });
+    }
+    toast.success('Manager updated');
     loadData();
   };
 
@@ -238,8 +261,8 @@ export function AdminTab() {
   };
 
   const handleExportAccessReport = () => {
-    const headers = ['User ID', 'Display Name', 'Role', 'Department', 'Suspended'];
-    const rows = users.map(u => [u.id, u.display_name || '', u.role, u.department || '', u.suspended ? 'Yes' : 'No']);
+    const headers = ['User ID', 'Display Name', 'Role', 'Department', 'Manager', 'Suspended'];
+    const rows = users.map(u => [u.id, u.display_name || '', u.role, u.department || '', u.manager_id || '', u.suspended ? 'Yes' : 'No']);
     const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -361,7 +384,7 @@ export function AdminTab() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary" />User Management</CardTitle>
-                  <CardDescription>{users.length} registered users</CardDescription>
+                  <CardDescription>{users.length} registered users. Manager assignment drives approver routing while prompts remain in review.</CardDescription>
                 </div>
                 <div className="flex gap-2">
                   <label className="cursor-pointer">
@@ -389,6 +412,7 @@ export function AdminTab() {
                       <TableHead className="hidden sm:table-cell">ID</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>Department</TableHead>
+                      <TableHead>Manager</TableHead>
                       <TableHead className="w-16">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -421,6 +445,21 @@ export function AdminTab() {
                             <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               {DEPTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Select value={u.manager_id || 'none'} onValueChange={(v) => handleManagerChange(u.id, v === 'none' ? null : v)}>
+                            <SelectTrigger className="w-40 h-8 text-xs"><SelectValue placeholder="No manager" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">No manager</SelectItem>
+                              {users
+                                .filter((candidate) => candidate.id !== u.id)
+                                .map((candidate) => (
+                                  <SelectItem key={candidate.id} value={candidate.id}>
+                                    {candidate.display_name || candidate.id.substring(0, 8)}
+                                  </SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
                         </TableCell>

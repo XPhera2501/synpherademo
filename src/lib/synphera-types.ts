@@ -2,8 +2,19 @@
 
 export type SecurityStatus = 'GREEN' | 'AMBER' | 'RED' | 'PENDING';
 export type AssetStatus = 'draft' | 'created' | 'in_review' | 'approved';
-export type ROICategory = 'Time Savings' | 'Risk Mitigation' | 'Efficiency' | 'Cost Savings' | 'New Value';
+export type ROICategory = 'Cost Savings' | 'Compliance Improvement' | 'Operational Velocity Improvement' | 'Risk Level Reduction' | 'Revenue Increase';
 export type Department = 'Operations' | 'Legal' | 'R&D' | 'Marketing' | 'Finance' | 'HR' | 'IT' | 'Executive';
+
+const LEGACY_ROI_CATEGORY_MAP: Record<string, ROICategory> = {
+  'Time Savings': 'Operational Velocity Improvement',
+  'Risk Mitigation': 'Risk Level Reduction',
+  Efficiency: 'Operational Velocity Improvement',
+  'New Value': 'Revenue Increase',
+  Time: 'Operational Velocity Improvement',
+  'Earlier Reaction': 'Risk Level Reduction',
+  'Waste Reduction': 'Cost Savings',
+  'Improved Price Negotiation': 'Cost Savings',
+};
 
 export interface Reviewer {
   id: string;
@@ -92,12 +103,24 @@ export const REVIEWERS: Reviewer[] = [
 ];
 
 export const ROI_CATEGORIES: ROICategory[] = [
-  'Time Savings',
-  'Risk Mitigation',
-  'Efficiency',
   'Cost Savings',
-  'New Value',
+  'Compliance Improvement',
+  'Operational Velocity Improvement',
+  'Risk Level Reduction',
+  'Revenue Increase',
 ];
+
+export function normalizeROICategory(category: string | null | undefined): ROICategory | null {
+  if (!category) {
+    return null;
+  }
+
+  if ((ROI_CATEGORIES as string[]).includes(category)) {
+    return category as ROICategory;
+  }
+
+  return LEGACY_ROI_CATEGORY_MAP[category] || null;
+}
 
 export const DEPARTMENTS: Department[] = [
   'Operations',

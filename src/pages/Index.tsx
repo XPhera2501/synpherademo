@@ -34,7 +34,7 @@ export default function Index() {
   
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {showHeader && <Header refreshKey={refreshKey} />}
+      {showHeader && <Header />}
       
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-6 flex-1 w-full">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
