@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { Json } from '@/integrations/supabase/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -296,7 +297,7 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
         scores: analysis.scores,
         flags: analysis.flags,
         routing: analysis.routing,
-        semanticClassification: analysis.businessOutcome,
+        semanticClassification: analysis.businessOutcome as unknown as Record<string, Json>,
       } : {}),
       profileSummary: {
         company: 'X-Phera',
@@ -399,7 +400,7 @@ export function CreationTab({ onAssetCreated, creationSeed, onSeedConsumed }: Cr
       commit_message: commitMessage.trim(),
       is_locked: false,
       tags: [],
-      metadata: workflowMetadata,
+      metadata: metadata as Record<string, Json>,
     });
 
     if (asset) {

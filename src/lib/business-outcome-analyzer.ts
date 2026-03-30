@@ -377,7 +377,7 @@ function buildGuidance(tokens: string[], rankedResults: Array<[BusinessOutcomeRe
     return 'The prompt mixes multiple outcomes. Make the primary intent explicit by stating whether the goal is cost reduction, compliance improvement, operational speed, risk reduction, or revenue growth.';
   }
 
-  if (topCategory === 'Unclassified') {
+  if ((topCategory as string) === 'Unclassified') {
     return 'Clarify the intended business outcome. Add one action, one target process, and one measurable benefit such as cost, cycle time, compliance, risk, or revenue.';
   }
 

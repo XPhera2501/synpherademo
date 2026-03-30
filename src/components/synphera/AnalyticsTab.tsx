@@ -14,6 +14,7 @@ interface AnalyticsTabProps {
 const DEPT_COLORS: Record<Department, string> = {
   'Operations': '#00DFD4', 'Legal': '#0088AA', 'R&D': '#6366F1', 'Marketing': '#EC4899',
   'Finance': '#10B981', 'HR': '#F59E0B', 'IT': '#8B5CF6', 'Executive': '#00233D',
+  'Procurement': '#14B8A6', 'Sales': '#F97316',
 };
 
 const STATUS_COLORS: Record<string, string> = {
