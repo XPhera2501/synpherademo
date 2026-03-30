@@ -177,8 +177,8 @@ export type Database = {
       }
       prompt_assets: {
         Row: {
-          assigned_to: string | null
           approver_id: string | null
+          assigned_to: string | null
           category: string | null
           commit_message: string | null
           content: string
@@ -200,8 +200,8 @@ export type Database = {
           version: number
         }
         Insert: {
-          assigned_to?: string | null
           approver_id?: string | null
+          assigned_to?: string | null
           category?: string | null
           commit_message?: string | null
           content?: string
@@ -223,8 +223,8 @@ export type Database = {
           version?: number
         }
         Update: {
-          assigned_to?: string | null
           approver_id?: string | null
+          assigned_to?: string | null
           category?: string | null
           commit_message?: string | null
           content?: string
@@ -263,13 +263,6 @@ export type Database = {
           prompt_id: string
           user_id: string
         }
-          {
-            foreignKeyName: "prompt_assets_approver_id_fkey"
-            columns: ["approver_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         Insert: {
           content: string
           created_at?: string
@@ -277,13 +270,6 @@ export type Database = {
           prompt_id: string
           user_id: string
         }
-          {
-            foreignKeyName: "prompt_assets_reviewer_id_fkey"
-            columns: ["reviewer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         Update: {
           content?: string
           created_at?: string
@@ -476,6 +462,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_view_prompt_asset: {
+        Args: {
+          _approver_id: string
+          _created_by: string
+          _department: Database["public"]["Enums"]["department"]
+          _reviewer_id: string
+          _status: Database["public"]["Enums"]["asset_status"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      get_prompt_workflow_phase: {
+        Args: {
+          _approver_id: string
+          _metadata: Json
+          _reviewer_id: string
+          _status: Database["public"]["Enums"]["asset_status"]
+        }
+        Returns: string
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -489,8 +495,20 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "super_admin" | "admin" | "approver" | "creator" | "reviewer" | "viewer"
-      asset_status: "draft" | "in_review" | "pending_approval" | "approved" | "released" | "created"
+      app_role:
+        | "super_admin"
+        | "admin"
+        | "creator"
+        | "reviewer"
+        | "viewer"
+        | "approver"
+      asset_status:
+        | "draft"
+        | "in_review"
+        | "approved"
+        | "released"
+        | "created"
+        | "pending_approval"
       department:
         | "Operations"
         | "Legal"
@@ -500,6 +518,8 @@ export type Database = {
         | "HR"
         | "IT"
         | "Executive"
+        | "Procurement"
+        | "Sales"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -627,8 +647,22 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["super_admin", "admin", "approver", "creator", "reviewer", "viewer"],
-      asset_status: ["draft", "in_review", "pending_approval", "approved", "released", "created"],
+      app_role: [
+        "super_admin",
+        "admin",
+        "creator",
+        "reviewer",
+        "viewer",
+        "approver",
+      ],
+      asset_status: [
+        "draft",
+        "in_review",
+        "approved",
+        "released",
+        "created",
+        "pending_approval",
+      ],
       department: [
         "Operations",
         "Legal",
@@ -638,6 +672,8 @@ export const Constants = {
         "HR",
         "IT",
         "Executive",
+        "Procurement",
+        "Sales",
       ],
     },
   },
