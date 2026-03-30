@@ -132,7 +132,7 @@ export const DEPARTMENTS: Department[] = [
   'IT',
   'Executive',
   'Procurement',
-  'Sales'
+  'Sales',
 ];
 
 export const PROMPT_TEMPLATES: PromptTemplate[] = [

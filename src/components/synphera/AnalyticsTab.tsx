@@ -14,7 +14,7 @@ interface AnalyticsTabProps {
 const DEPT_COLORS: Record<Department, string> = {
   'Operations': '#00DFD4', 'Legal': '#0088AA', 'R&D': '#6366F1', 'Marketing': '#EC4899',
   'Finance': '#10B981', 'HR': '#F59E0B', 'IT': '#8B5CF6', 'Executive': '#00233D',
-  'Procurement': '#14B8A6', 'Sales': '#F97316',
+  'Procurement': '#F97316', 'Sales': '#06B6D4',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -74,7 +74,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
       ]);
       setAssets(a); setFacts(f); setAuditLogs(logs);
       setMetrics(headerMetrics);
-      setDeptCounts(await getAssetCountByDepartment(a));
+      setDeptCounts(await getAssetCountByDepartment());
 
       setLoading(false);
     })();
@@ -106,14 +106,14 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
     [deptCounts],
   );
 
-  // Department bar chart data
+  // Department bar chart data — show all departments, even those with 0 assets
   const deptBarData = useMemo(() => 
-    visibleDepartments.map(d => ({
+    DEPARTMENTS.map(d => ({
       name: d,
       fullName: d,
-      count: deptCounts[d],
+      count: deptCounts[d] || 0,
       fill: DEPT_COLORS[d],
-    })), [deptCounts, visibleDepartments]);
+    })), [deptCounts]);
 
   const primaryBenefitByAsset = useMemo(() => {
     const factsByAsset = new Map<string, DbROIFact[]>();
@@ -183,7 +183,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
   const engagementData = useMemo(() => {
     const assetDepartmentMap = new Map(assets.map((asset) => [asset.id, asset.department]));
     const approvedCountByDepartment = Object.fromEntries(
-      visibleDepartments.map((department) => [department, 0]),
+      DEPARTMENTS.map((department) => [department, 0]),
     ) as Record<Department, number>;
 
     assets.forEach((asset) => {
@@ -194,7 +194,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
 
     const executeLogs = auditLogs.filter((log) => log.action === 'execute_prompt' && !!log.target_id);
     const actualReuseCounts = Object.fromEntries(
-      visibleDepartments.map((department) => [department, 0]),
+      DEPARTMENTS.map((department) => [department, 0]),
     ) as Record<Department, number>;
 
     executeLogs.forEach((log) => {
@@ -206,12 +206,12 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
 
     const hasActualReuses = executeLogs.length > 0;
 
-    return visibleDepartments.map((department) => ({
+    return DEPARTMENTS.map((department) => ({
       department,
       assets: deptCounts[department] || 0,
       reuses: hasActualReuses ? actualReuseCounts[department] : approvedCountByDepartment[department] * 3,
     }));
-  }, [assets, auditLogs, deptCounts, visibleDepartments]);
+  }, [assets, auditLogs, deptCounts]);
 
   const benefitPromptMatrix = useMemo(() => {
     const assetDepartmentMap = new Map(assets.map((asset) => [asset.id, asset.department]));
@@ -234,7 +234,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
     });
 
     const deptTotals = Object.fromEntries(
-      visibleDepartments.map((department) => [
+      DEPARTMENTS.map((department) => [
         department,
         ROI_CATEGORIES.reduce((sum, category) => sum + matrix[department][category].size, 0),
       ]),
@@ -243,7 +243,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
     const categoryTotals = Object.fromEntries(
       ROI_CATEGORIES.map((category) => [
         category,
-        visibleDepartments.reduce((sum, department) => sum + matrix[department][category].size, 0),
+        DEPARTMENTS.reduce((sum, department) => sum + matrix[department][category].size, 0),
       ]),
     ) as Record<ROICategory, number>;
 
@@ -253,7 +253,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
       categoryTotals,
       grandTotal: Object.values(categoryTotals).reduce((sum, value) => sum + value, 0),
     };
-  }, [assets, facts, visibleDepartments]);
+  }, [assets, facts]);
 
   const savedOutcomeData = useMemo(() => {
     const rows = new Map<BusinessOutcomeCategory, { outcome: BusinessOutcomeCategory; assets: number; averageConfidence: number; fill: string }>();
@@ -408,7 +408,7 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base"><Building2 className="h-5 w-5 text-primary" />Assets by Department</CardTitle>
-              <CardDescription className="text-xs">Only departments with created assets are shown.</CardDescription>
+              <CardDescription className="text-xs">All departments are shown, including those with no assets yet.</CardDescription>
             </CardHeader>
             <CardContent>
               {deptBarData.length > 0 ? (

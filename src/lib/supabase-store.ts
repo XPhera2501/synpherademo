@@ -372,18 +372,23 @@ export async function getSecurityStats(assets: DbPromptAsset[]) {
   };
 }
 
-export async function getAssetCountByDepartment(assets: DbPromptAsset[]) {
+export async function getAssetCountByDepartment(_assets?: DbPromptAsset[]) {
   const counts: Record<string, number> = {};
   DEPARTMENTS.forEach(d => counts[d] = 0);
-  assets.forEach(a => { if (counts[a.department] !== undefined) counts[a.department]++; });
+  // Use SECURITY DEFINER RPC so counts reflect the real total, not the caller's RLS-filtered view.
+  const { data } = await supabase.rpc('get_asset_count_by_department');
+  (data || []).forEach((row: { department: string; count: number }) => {
+    counts[row.department] = Number(row.count);
+  });
   return counts;
 }
 
 export async function getHeaderMetrics(): Promise<HeaderMetrics> {
-  const [assets, profiles, { data: auditLogs }] = await Promise.all([
+  const [assets, profiles, { data: auditLogs }, { data: totalCountData }] = await Promise.all([
     getAssets(),
     getProfiles(),
     supabase.from('audit_logs').select('action, user_id, target_id'),
+    supabase.rpc('get_total_prompt_asset_count'),
   ]);
 
   const now = new Date();
@@ -408,8 +413,12 @@ export async function getHeaderMetrics(): Promise<HeaderMetrics> {
     log.action === 'execute_prompt' && !!log.target_id && approvedAssetIds.has(log.target_id)
   )).length;
 
+  // Use the SECURITY DEFINER RPC so the "Total Assets" card always shows
+  // the real system-wide count, regardless of the caller's RLS-filtered view.
+  const totalAssets = typeof totalCountData === 'number' ? totalCountData : Number(totalCountData ?? assets.length);
+
   return {
-    totalAssets: assets.length,
+    totalAssets,
     assetsCreatedLastMonth: assets.filter((asset) => {
       const createdAt = new Date(asset.created_at);
       return createdAt >= startOfPreviousMonth && createdAt < startOfCurrentMonth;
