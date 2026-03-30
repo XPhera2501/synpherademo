@@ -1,11 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Search, Send } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Send } from 'lucide-react';
 import { getProfiles, type DbProfile } from '@/lib/supabase-store';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,7 +19,6 @@ export function AssignForReviewDialog({ open, onOpenChange, onSend }: AssignForR
   const { user, profile } = useAuth();
   const [profiles, setProfiles] = useState<DbProfile[]>([]);
   const [rolesByUserId, setRolesByUserId] = useState<Record<string, string[]>>({});
-  const [search, setSearch] = useState('');
   const [selectedColleague, setSelectedColleague] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -40,12 +38,11 @@ export function AssignForReviewDialog({ open, onOpenChange, onSend }: AssignForR
         });
         setRolesByUserId(nextRolesByUserId);
       });
-      setSearch('');
       setSelectedColleague(null);
     }
   }, [open]);
 
-  const filteredProfiles = useMemo(() => {
+  const reviewerOptions = useMemo(() => {
     return profiles
       .filter(p => {
         if (p.id === user?.id) return false;
@@ -53,16 +50,14 @@ export function AssignForReviewDialog({ open, onOpenChange, onSend }: AssignForR
 
         const candidateRoles = rolesByUserId[p.id] || [];
         const canReview = candidateRoles.includes('reviewer') || candidateRoles.includes('admin') || candidateRoles.includes('super_admin');
-        if (!canReview) return false;
-
-        if (!search) return true;
-        const q = search.toLowerCase();
-        return (
-          p.display_name?.toLowerCase().includes(q) ||
-          p.department?.toLowerCase().includes(q)
-        );
+        return canReview;
       });
-  }, [profiles, search, user?.id, profile?.department, rolesByUserId]);
+  }, [profiles, user?.id, profile?.department, rolesByUserId]);
+
+  const selectedReviewer = useMemo(
+    () => reviewerOptions.find((candidate) => candidate.id === selectedColleague) ?? null,
+    [reviewerOptions, selectedColleague],
+  );
 
   const handleSend = () => {
     if (!selectedColleague) return;
@@ -80,53 +75,47 @@ export function AssignForReviewDialog({ open, onOpenChange, onSend }: AssignForR
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Search colleagues */}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search colleagues..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-9"
-            />
+          <div className="space-y-2">
+            <Label htmlFor="reviewer-select">Reviewer</Label>
+            <Select
+              value={selectedColleague ?? undefined}
+              onValueChange={setSelectedColleague}
+              disabled={reviewerOptions.length === 0}
+            >
+              <SelectTrigger id="reviewer-select">
+                <SelectValue placeholder="Select a reviewer" />
+              </SelectTrigger>
+              <SelectContent>
+                {reviewerOptions.map((candidate) => (
+                  <SelectItem key={candidate.id} value={candidate.id}>
+                    {candidate.display_name || 'Unknown'}
+                    {candidate.department ? ` - ${candidate.department}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Colleague list */}
-          <div className="max-h-48 overflow-y-auto space-y-1 rounded-lg border border-border p-1">
-            {filteredProfiles.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No colleagues found</p>
+          <div className="rounded-lg border border-border p-3">
+            {selectedReviewer ? (
+              <div className="flex items-center gap-3">
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="bg-muted text-xs">
+                    {(selectedReviewer.display_name || '?')[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{selectedReviewer.display_name || 'Unknown'}</p>
+                  <p className="text-xs text-muted-foreground">{selectedReviewer.department || 'No department'}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {(rolesByUserId[selectedReviewer.id] || []).join(', ') || 'No role'}
+                  </p>
+                </div>
+              </div>
             ) : (
-              filteredProfiles.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedColleague(p.id)}
-                  className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                    selectedColleague === p.id
-                      ? 'bg-primary/10 border border-primary/30'
-                      : 'hover:bg-muted'
-                  }`}
-                >
-                  <Avatar className="h-7 w-7">
-                    <AvatarFallback className="text-[10px] bg-muted">
-                      {(p.display_name || '?')[0].toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">
-                      {p.id === user?.id ? `${p.display_name || 'Unknown'} (Me)` : p.display_name || 'Unknown'}
-                    </p>
-                    {p.department && (
-                      <p className="text-xs text-muted-foreground">{p.department}</p>
-                    )}
-                    <p className="text-[10px] text-muted-foreground">
-                      {(rolesByUserId[p.id] || []).join(', ') || 'No role'}
-                    </p>
-                  </div>
-                  {selectedColleague === p.id && (
-                    <Badge variant="default" className="text-[10px] h-5">Selected</Badge>
-                  )}
-                </button>
-              ))
+              <p className="py-2 text-sm text-muted-foreground text-center">
+                {reviewerOptions.length === 0 ? 'No eligible reviewers found' : 'Select a reviewer from the list'}
+              </p>
             )}
           </div>
 
