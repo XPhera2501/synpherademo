@@ -3,7 +3,7 @@
 export type SecurityStatus = 'GREEN' | 'AMBER' | 'RED' | 'PENDING';
 export type AssetStatus = 'draft' | 'created' | 'in_review' | 'approved';
 export type ROICategory = 'Cost Savings' | 'Compliance Improvement' | 'Operational Velocity Improvement' | 'Risk Level Reduction' | 'Revenue Increase';
-export type Department = 'Operations' | 'Legal' | 'R&D' | 'Marketing' | 'Finance' | 'HR' | 'IT' | 'Executive';
+export type Department = 'Operations' | 'Legal' | 'R&D' | 'Marketing' | 'Finance' | 'HR' | 'IT' | 'Executive' | 'Procurement' | 'Sales';
 
 const LEGACY_ROI_CATEGORY_MAP: Record<string, ROICategory> = {
   'Time Savings': 'Operational Velocity Improvement',
