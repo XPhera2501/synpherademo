@@ -168,6 +168,11 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
         target_id: asset.id,
         details: { source: 'catalogue' },
       });
+      try {
+        await navigator.clipboard.writeText(asset.content ?? '');
+      } catch {
+        // clipboard access denied — silently continue
+      }
       setExecuteDialogAsset(asset);
       return;
     }
@@ -526,9 +531,9 @@ export function CatalogueTab({ refreshKey, onLoadIntoCreation }: CatalogueTabPro
             {executeDialogAsset && (
               <div className="space-y-3 text-sm text-muted-foreground">
                 <p>
-                  <span className="font-medium text-foreground">{executeDialogAsset.title}</span> has been sent to the LLM flow.
+                  <span className="font-medium text-foreground">{executeDialogAsset.title}</span> has been copied to your clipboard.
                 </p>
-                <p>You will remain in Catalogue after closing this popup.</p>
+                <p>Paste it directly into your LLM of choice (ChatGPT, Copilot, Claude, etc.).</p>
               </div>
             )}
             <DialogFooter>
