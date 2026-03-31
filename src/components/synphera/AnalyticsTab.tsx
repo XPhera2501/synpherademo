@@ -313,9 +313,9 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
       icon: PlayCircle,
     },
     {
-      label: 'Active Users',
+      label: 'Active Creators',
       value: `${metrics.activeUsers.toLocaleString()} / ${metrics.registeredUsers.toLocaleString()}`,
-      detail: 'Submitted vs registered users',
+      detail: 'Active creators / registered creators',
       icon: Users,
     },
   ];
@@ -413,9 +413,9 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
             <CardContent>
               {deptBarData.length > 0 ? (
                 <>
-                  <div className="h-[220px]">
+                  <div className="h-[340px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={deptBarData} layout="vertical" margin={{ left: 0, right: 16 }}>
+                    <BarChart data={deptBarData} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 4 }} barSize={20}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
                       <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                       <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} width={92} />
@@ -487,11 +487,11 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
         <CardContent>
           {engagementData.length > 0 ? (
             <>
-              <div className="h-[280px]">
+              <div className="h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={engagementData} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+                  <BarChart data={engagementData} margin={{ top: 12, right: 12, left: 0, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="department" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                    <XAxis dataKey="department" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} angle={-35} textAnchor="end" interval={0} />
                     <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                     <Legend wrapperStyle={{ fontSize: '12px' }} />
                     <Tooltip content={({ payload }) => {
