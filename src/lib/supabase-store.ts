@@ -39,6 +39,13 @@ export interface HeaderMetrics {
   registeredUsers: number;
 }
 
+export interface AssetStatusCounts {
+  draft: number;
+  created: number;
+  in_review: number;
+  approved: number;
+}
+
 export interface PromptAssetMetadata extends Record<string, Json | undefined> {
   taskType?: string;
   determinismScore?: number;
@@ -380,6 +387,36 @@ export async function getAssetCountByDepartment(_assets?: DbPromptAsset[]) {
   (data || []).forEach((row: { department: string; count: number }) => {
     counts[row.department] = Number(row.count);
   });
+  return counts;
+}
+
+export async function getApprovedAssetCountByDepartment() {
+  const counts: Record<string, number> = {};
+  DEPARTMENTS.forEach(d => counts[d] = 0);
+  // Use SECURITY DEFINER RPC so approved prompt counts reflect the real total by department.
+  const { data } = await supabase.rpc('get_approved_asset_count_by_department');
+  (data || []).forEach((row: { department: string; count: number }) => {
+    counts[row.department] = Number(row.count);
+  });
+  return counts;
+}
+
+export async function getAssetCountByStatus(): Promise<AssetStatusCounts> {
+  const counts: AssetStatusCounts = {
+    draft: 0,
+    created: 0,
+    in_review: 0,
+    approved: 0,
+  };
+
+  // Use SECURITY DEFINER RPC so dashboard status counts reflect the full workflow pipeline.
+  const { data } = await supabase.rpc('get_asset_count_by_status');
+  (data || []).forEach((row: { status: keyof AssetStatusCounts; count: number }) => {
+    if (counts[row.status] !== undefined) {
+      counts[row.status] = Number(row.count);
+    }
+  });
+
   return counts;
 }
 
