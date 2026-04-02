@@ -56,6 +56,19 @@ function formatMonthLabel(monthKey: string) {
   });
 }
 
+function formatBenefitCategoryLabel(category: ROICategory) {
+  switch (category) {
+    case 'Operational Velocity Improvement':
+      return 'Op. Velocity';
+    case 'Risk Level Reduction':
+      return 'Risk Reduction';
+    case 'Revenue Increase':
+      return 'Revenue';
+    default:
+      return category;
+  }
+}
+
 export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
   const [assets, setAssets] = useState<DbPromptAsset[]>([]);
   const [facts, setFacts] = useState<DbROIFact[]>([]);
@@ -501,11 +514,19 @@ export function AnalyticsTab({ refreshKey }: AnalyticsTabProps) {
         <CardContent className="pt-0">
           {benefitCategoryData.distribution.length > 0 ? (
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
-              <div className="h-[220px]">
+              <div className="h-[236px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={benefitCategoryData.distribution} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+                  <BarChart data={benefitCategoryData.distribution} margin={{ top: 12, right: 12, left: 0, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="category" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} interval={0} angle={-12} textAnchor="end" height={58} />
+                    <XAxis
+                      dataKey="category"
+                      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(value) => formatBenefitCategoryLabel(value as ROICategory)}
+                      interval={0}
+                      angle={-18}
+                      textAnchor="end"
+                      height={72}
+                    />
                     <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                     <Tooltip content={({ payload }) => {
                       if (!payload?.[0]) return null;
