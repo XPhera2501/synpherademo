@@ -473,6 +473,27 @@ export type Database = {
         }
         Returns: boolean
       }
+      get_approved_asset_count_by_department: {
+        Args: never
+        Returns: {
+          count: number
+          department: string
+        }[]
+      }
+      get_asset_count_by_department: {
+        Args: never
+        Returns: {
+          count: number
+          department: string
+        }[]
+      }
+      get_asset_count_by_status: {
+        Args: never
+        Returns: {
+          count: number
+          status: string
+        }[]
+      }
       get_prompt_workflow_phase: {
         Args: {
           _approver_id: string
@@ -482,6 +503,7 @@ export type Database = {
         }
         Returns: string
       }
+      get_total_prompt_asset_count: { Args: never; Returns: number }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
